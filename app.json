@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "HabitFlow - متتبع العادات",
+    "slug": "habit-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0F17"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0F17",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "navigationBar": {
+        "visible": "sticky-immersive",
+        "backgroundColor": "#00000000"
+      },
+      "statusBar": {
+        "translucent": true,
+        "backgroundColor": "#00000000"
+      }
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    }
+  }
+}
