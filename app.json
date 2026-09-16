@@ -31,6 +31,12 @@
     },
     "web": {
       "favicon": "./assets/icon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "01965a6c-f71d-4cfe-96ac-fecce45d53f0"
+      }
+    },
+    "owner": "mohammad-alzains-team"
   }
 }

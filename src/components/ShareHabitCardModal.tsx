@@ -32,6 +32,7 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
   theme,
   language = 'ar',
   onClose,
+}) => {
   const rtl = isRTL(language);
   if (!habit) return null;
 
