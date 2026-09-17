@@ -7,7 +7,6 @@ import {
   ScrollView,
   Platform,
   LayoutAnimation,
-  UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitCategory, HabitLogs, ViewMode } from '../types/habit';
@@ -21,11 +20,6 @@ import { getTodayString } from '../utils/dateUtils';
 import { soundService } from '../services/soundService';
 import { hapticService } from '../services/hapticService';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
-
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 interface HabitsScreenProps {
   habits: Habit[];
@@ -86,19 +80,19 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     setShowFilters((prev) => !prev);
   };
 
-  const handleToggleTodayWithEffects = (habitId: string) => {
+  const handleToggleTodayWithEffects = React.useCallback((habitId: string) => {
     soundService.playComplete();
     hapticService.success();
     onToggleToday(habitId);
-  };
+  }, [onToggleToday]);
 
-  const handleTogglePastDateWithEffects = (habitId: string, dateStr: string) => {
+  const handleTogglePastDateWithEffects = React.useCallback((habitId: string, dateStr: string) => {
     soundService.playComplete();
     hapticService.light();
     onTogglePastDate(habitId, dateStr);
-  };
+  }, [onTogglePastDate]);
 
-  const handleAdjustNumericWithEffects = (habitId: string, delta: number) => {
+  const handleAdjustNumericWithEffects = React.useCallback((habitId: string, delta: number) => {
     if (delta > 0) {
       soundService.playTap();
       hapticService.light();
@@ -106,7 +100,27 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
       hapticService.light();
     }
     onAdjustNumeric && onAdjustNumeric(habitId, delta);
-  };
+  }, [onAdjustNumeric]);
+
+  // Daily focus summary stats
+  const totalActiveCount = activeHabits.length;
+  let todayCompletedCount = 0;
+  let todayFocusMinutes = 0;
+
+  for (const h of activeHabits) {
+    const val = logs[h.id]?.[todayStr] || 0;
+    const thresh = h.targetValue || h.targetPerDay || 1;
+    if (val >= thresh) {
+      todayCompletedCount++;
+    }
+    if (h.type === 'timer') {
+      todayFocusMinutes += val;
+    }
+  }
+
+  const todayPercent = totalActiveCount > 0
+    ? Math.round((todayCompletedCount / totalActiveCount) * 100)
+    : 0;
 
   // Check Two-Day Rule: habits missed yesterday and not done today
   const atRiskHabits = activeHabits.filter((h) => {
@@ -195,6 +209,57 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Smart Daily Focus Summary Card */}
+        {totalActiveCount > 0 && (
+          <View
+            style={[
+              styles.dailySummaryCard,
+              {
+                backgroundColor: theme.glassSurface || theme.card,
+                borderColor: theme.glassBorder || theme.cardBorder,
+                borderTopColor: theme.glassSpecular || 'rgba(255,255,255,0.24)',
+              },
+            ]}
+          >
+            <View style={styles.dailySummaryRow}>
+              <View style={styles.dailySummaryStats}>
+                <View style={styles.dailyBadgeRow}>
+                  <View style={[styles.dailyPercentBadge, { backgroundColor: todayCompletedCount === totalActiveCount ? 'rgba(46, 204, 113, 0.2)' : 'rgba(124, 131, 253, 0.18)' }]}>
+                    <Text style={[styles.dailyPercentText, { color: todayCompletedCount === totalActiveCount ? '#2ECC71' : '#7C83FD' }]}>
+                      {todayPercent}%
+                    </Text>
+                  </View>
+                  <Text style={[styles.dailySummaryTitle, { color: theme.text }]}>
+                    {todayCompletedCount} من {totalActiveCount} عادات منجزة اليوم
+                  </Text>
+                </View>
+
+                {todayFocusMinutes > 0 && (
+                  <View style={[styles.focusMinutesPill, { backgroundColor: 'rgba(0, 206, 201, 0.15)', borderColor: 'rgba(0, 206, 201, 0.3)' }]}>
+                    <Ionicons name="timer-outline" size={12} color="#00CEC9" />
+                    <Text style={styles.focusMinutesText}>
+                      {todayFocusMinutes} دقيقة تركيز
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Micro progress line */}
+            <View style={[styles.summaryTrack, { backgroundColor: theme.surface }]}>
+              <View
+                style={[
+                  styles.summaryFill,
+                  {
+                    width: `${todayPercent}%`,
+                    backgroundColor: todayCompletedCount === totalActiveCount ? '#2ECC71' : '#7C83FD',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        )}
+
         {/* Two-Day Rule Alert Banner (Atomic Habits) */}
         {showTwoDayBanner && atRiskHabits.length > 0 && (
           <View style={[styles.atRiskBanner, { backgroundColor: 'rgba(231, 76, 60, 0.12)', borderColor: 'rgba(231, 76, 60, 0.35)' }]}>
@@ -276,6 +341,8 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
                   logs={logs}
                   theme={theme}
                   onToggleToday={handleToggleTodayWithEffects}
+                  onStartTimer={onStartTimer}
+                  onAdjustNumeric={handleAdjustNumericWithEffects}
                   onPressCard={(h) => {
                     hapticService.light();
                     onPressHabit(h);
@@ -374,5 +441,64 @@ const styles = StyleSheet.create({
   emptySub: {
     fontSize: 13,
     textAlign: 'center',
+  },
+  dailySummaryCard: {
+    borderRadius: 18,
+    borderWidth: 1.2,
+    padding: 12,
+    marginBottom: 12,
+  },
+  dailySummaryRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  dailySummaryStats: {
+    flex: 1,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dailyBadgeRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dailyPercentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  dailyPercentText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  dailySummaryTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  focusMinutesPill: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  focusMinutesText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#00CEC9',
+  },
+  summaryTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  summaryFill: {
+    height: '100%',
+    borderRadius: 2,
   },
 });

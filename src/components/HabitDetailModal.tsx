@@ -19,7 +19,10 @@ import {
   formatDateToISO,
   getArabicMonth,
   formatFriendlyDate,
+  getCachedMonthDays,
+  getCached22WeekColumns,
 } from '../utils/dateUtils';
+import { FULL_SCREEN_SAFE_TOP, DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
 interface HabitDetailModalProps {
   visible: boolean;
@@ -28,6 +31,8 @@ interface HabitDetailModalProps {
   theme: ThemeColors;
   onClose: () => void;
   onToggleDate: (habitId: string, dateStr: string) => void;
+  onStartTimer?: (habit: Habit) => void;
+  onToggleStreakFreeze?: (habitId: string, dateStr: string) => void;
   onEditHabit: (habit: Habit) => void;
   onDeleteHabit?: (habitId: string) => void;
   onArchiveHabit?: (habitId: string) => void;
@@ -42,6 +47,8 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
   theme,
   onClose,
   onToggleDate,
+  onStartTimer,
+  onToggleStreakFreeze,
   onEditHabit,
   onDeleteHabit,
   onArchiveHabit,
@@ -71,17 +78,16 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
   const daysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
   const firstDayOfWeek = new Date(currentYear, currentMonthIndex, 1).getDay(); // 0 = Sun
 
-  const monthDays: { dateStr: string; dayNum: number; isCompleted: boolean; isToday: boolean }[] = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dObj = new Date(currentYear, currentMonthIndex, d);
-    const dStr = formatDateToISO(dObj);
-    monthDays.push({
-      dateStr: dStr,
-      dayNum: d,
-      isCompleted: (habitLogs[dStr] || 0) >= targetThreshold,
-      isToday: dStr === todayStr,
-    });
-  }
+  const frozenDaysSet = new Set(habit.streakFreezeDays || []);
+  const cachedDays = getCachedMonthDays(currentYear, currentMonthIndex);
+
+  const monthDays = cachedDays.map((d) => ({
+    dateStr: d.dateStr,
+    dayNum: d.dayNum,
+    isCompleted: (habitLogs[d.dateStr] || 0) >= targetThreshold,
+    isToday: d.dateStr === todayStr,
+    isFrozen: frozenDaysSet.has(d.dateStr),
+  }));
 
   const todayDate = parseISODate(todayStr);
 
@@ -92,25 +98,17 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
     stripMonths.push(getArabicMonth(mDate.getMonth()));
   }
 
-  // 22-column heatmap matrix (22 weeks x 7 days) ending this week
-  const todayDayOfWeek = (todayDate.getDay() + 6) % 7; // Monday = 0 ... Sunday = 6
-  const startMatrixDate = new Date(todayDate);
-  startMatrixDate.setDate(todayDate.getDate() - todayDayOfWeek - 21 * 7);
-
-  const matrixCols: { dateStr: string; isCompleted: boolean; isToday: boolean; isFuture: boolean }[][] = [];
-  for (let c = 0; c < 22; c++) {
-    const col: { dateStr: string; isCompleted: boolean; isToday: boolean; isFuture: boolean }[] = [];
-    for (let r = 0; r < 7; r++) {
-      const cellDate = new Date(startMatrixDate);
-      cellDate.setDate(startMatrixDate.getDate() + (c * 7 + r));
-      const cellDateStr = formatDateToISO(cellDate);
+  // 22-column heatmap matrix (22 weeks x 7 days) pre-cached
+  const cached22Cols = getCached22WeekColumns();
+  const matrixCols = cached22Cols.map((col) => {
+    return col.map((cellDateStr) => {
       const isFuture = cellDateStr > todayStr;
       const isToday = cellDateStr === todayStr;
       const isCompleted = !isFuture && (habitLogs[cellDateStr] || 0) >= targetThreshold;
-      col.push({ dateStr: cellDateStr, isCompleted, isToday, isFuture });
-    }
-    matrixCols.push(col);
-  }
+      const isFrozen = frozenDaysSet.has(cellDateStr);
+      return { dateStr: cellDateStr, isCompleted, isToday, isFuture, isFrozen };
+    });
+  });
 
   // Dynamic Goal & Month Progress Calculation
   const currentMonthCompletedDays = monthDays.filter((d) => d.isCompleted).length;
@@ -376,11 +374,15 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
               ))}
 
               {monthDays.map((d) => {
+                const isSel = d.dateStr === selectedDateStr;
                 return (
                   <TouchableOpacity
                     key={d.dateStr}
                     activeOpacity={0.65}
-                    onPress={() => onToggleDate(habit.id, d.dateStr)}
+                    onPress={() => {
+                      setSelectedDateStr(d.dateStr);
+                      onToggleDate(habit.id, d.dateStr);
+                    }}
                     onLongPress={() => handleOpenNote(d.dateStr)}
                     style={styles.calCellWrapper}
                   >
@@ -388,13 +390,23 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
                       style={[
                         styles.calDayBox,
                         {
-                          backgroundColor: d.isCompleted ? `${habit.color}25` : 'transparent',
-                          borderColor: d.isToday
+                          backgroundColor: d.isFrozen
+                            ? 'rgba(0, 206, 201, 0.22)'
+                            : d.isCompleted
+                            ? `${habit.color}25`
+                            : isSel
+                            ? `${theme.surface}`
+                            : 'transparent',
+                          borderColor: d.isFrozen
+                            ? '#00CEC9'
+                            : d.isToday
                             ? habit.color
+                            : isSel
+                            ? 'rgba(255,255,255,0.4)'
                             : d.isCompleted
                             ? `${habit.color}50`
                             : 'transparent',
-                          borderWidth: d.isToday ? 2 : d.isCompleted ? 1 : 0,
+                          borderWidth: d.isFrozen || d.isToday || isSel ? 2 : d.isCompleted ? 1 : 0,
                         },
                       ]}
                     >
@@ -402,16 +414,18 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
                         style={[
                           styles.calDayNum,
                           {
-                            color: d.isCompleted ? '#FFFFFF' : theme.textMuted,
-                            fontWeight: d.isToday || d.isCompleted ? '800' : '500',
+                            color: d.isFrozen ? '#00CEC9' : d.isCompleted ? '#FFFFFF' : theme.textMuted,
+                            fontWeight: d.isToday || d.isCompleted || d.isFrozen ? '800' : '500',
                           },
                         ]}
                       >
                         {d.dayNum}
                       </Text>
-                      {d.isCompleted && (
+                      {d.isFrozen ? (
+                        <Text style={styles.frozenIconText}>❄️</Text>
+                      ) : d.isCompleted ? (
                         <View style={[styles.completedDot, { backgroundColor: habit.color }]} />
-                      )}
+                      ) : null}
                     </View>
                   </TouchableOpacity>
                 );
@@ -442,8 +456,77 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
             </View>
 
             <Text style={[styles.longPressHint, { color: theme.textDim }]}>
-              اضغط مطولاً على يوم لإضافة ملاحظة
+              اضغط على أي يوم للتسجيل، أو اضغط مطولاً لإضافة ملاحظة
             </Text>
+          </View>
+
+          {/* Selected Date Quick Actions: Streak Freeze, Timer Launcher, and Notes */}
+          <View
+            style={[
+              styles.selectedDayCard,
+              {
+                backgroundColor: theme.glassSurface || theme.card,
+                borderColor: theme.glassBorder || theme.cardBorder,
+                borderTopColor: theme.glassSpecular || 'rgba(255,255,255,0.22)',
+              },
+            ]}
+          >
+            <View style={styles.selectedDayHeader}>
+              <Text style={[styles.selectedDayTitle, { color: theme.text }]}>
+                تحكم يوم {formatFriendlyDate(selectedDateStr, 'ar')}
+              </Text>
+              {frozenDaysSet.has(selectedDateStr) && (
+                <View style={styles.freezeBadge}>
+                  <Text style={styles.freezeBadgeText}>❄️ الستريك محمي</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.selectedDayActionsRow}>
+              {/* Streak Freeze Toggle */}
+              {onToggleStreakFreeze && (
+                <TouchableOpacity
+                  onPress={() => onToggleStreakFreeze(habit.id, selectedDateStr)}
+                  style={[
+                    styles.dayActionBtn,
+                    {
+                      backgroundColor: frozenDaysSet.has(selectedDateStr)
+                        ? 'rgba(0, 206, 201, 0.25)'
+                        : theme.surface,
+                      borderColor: frozenDaysSet.has(selectedDateStr) ? '#00CEC9' : theme.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.dayActionText, { color: frozenDaysSet.has(selectedDateStr) ? '#00CEC9' : theme.text }]}>
+                    {frozenDaysSet.has(selectedDateStr) ? '❄️ إلغاء التجميد' : '❄️ تجميد الستريك'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Timer Launcher if timer type */}
+              {habit.type === 'timer' && onStartTimer && (
+                <TouchableOpacity
+                  onPress={() => onStartTimer(habit)}
+                  style={[styles.dayActionBtn, { backgroundColor: `${habit.color}20`, borderColor: habit.color }]}
+                >
+                  <Ionicons name="timer-outline" size={15} color={habit.color} />
+                  <Text style={[styles.dayActionText, { color: habit.color }]}>
+                    تشغيل المؤقت ⏱️
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Note button */}
+              <TouchableOpacity
+                onPress={() => handleOpenNote(selectedDateStr)}
+                style={[styles.dayActionBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              >
+                <Ionicons name="create-outline" size={15} color={theme.textMuted} />
+                <Text style={[styles.dayActionText, { color: theme.text }]}>
+                  {currentDayNote ? 'تعديل الملاحظة' : 'كتابة ملاحظة'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Bottom Card: Daily Notes & Reflections matching Image 4 */}
@@ -476,7 +559,7 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
         {/* Note Input Modal */}
         <Modal visible={noteInputVisible} transparent animationType="fade">
           <View style={[styles.noteModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-            <View style={[styles.noteModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={[styles.noteModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
               <Text style={[styles.noteModalTitle, { color: theme.text }]}>
                 ملاحظة {formatFriendlyDate(selectedDateStr, 'ar')}
               </Text>
@@ -513,7 +596,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: FULL_SCREEN_SAFE_TOP,
     paddingBottom: 8,
   },
   circleBtn: {
@@ -790,13 +873,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingTop: DIALOG_SAFE_TOP,
+    paddingBottom: DIALOG_SAFE_BOTTOM,
+    paddingHorizontal: 20,
   },
   noteModalCard: {
     width: '100%',
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1.5,
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 14,
   },
   noteModalTitle: {
     fontSize: 16,
@@ -834,5 +924,57 @@ const styles = StyleSheet.create({
   },
   cancelNoteBtnText: {
     fontSize: 13,
+  },
+  frozenIconText: {
+    fontSize: 9,
+    position: 'absolute',
+    bottom: 1,
+  },
+  selectedDayCard: {
+    borderRadius: 18,
+    borderWidth: 1.2,
+    padding: 14,
+    marginBottom: 14,
+  },
+  selectedDayHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  selectedDayTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  freezeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 206, 201, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 206, 201, 0.35)',
+  },
+  freezeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#00CEC9',
+  },
+  selectedDayActionsRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  dayActionBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  dayActionText: {
+    fontSize: 11.5,
+    fontWeight: '700',
   },
 });

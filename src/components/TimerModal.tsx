@@ -10,6 +10,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Habit } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
+import { ModalHeader } from './ModalHeader';
+import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
+
+import { soundService } from '../services/soundService';
+import { hapticService } from '../services/hapticService';
 
 interface TimerModalProps {
   visible: boolean;
@@ -52,6 +57,9 @@ export const TimerModal: React.FC<TimerModalProps> = ({
           if (prev <= 1) {
             if (intervalRef.current) clearInterval(intervalRef.current);
             setIsRunning(false);
+            soundService.playComplete();
+            hapticService.success();
+            onFinishSession(habit.id, targetMinutes);
             return 0;
           }
           return prev - 1;
@@ -63,21 +71,37 @@ export const TimerModal: React.FC<TimerModalProps> = ({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning]);
+  }, [isRunning, habit, targetMinutes]);
 
   const toggleRun = () => {
+    hapticService.light();
     setIsRunning(!isRunning);
   };
 
   const handleReset = () => {
+    hapticService.light();
     setIsRunning(false);
     setSecondsLeft(initialSeconds);
   };
 
+  const handleAddMinutes = (mins: number) => {
+    hapticService.light();
+    setSecondsLeft((prev) => Math.max(0, prev + mins * 60));
+  };
+
   const handleComplete = () => {
-    const elapsedSeconds = initialSeconds - secondsLeft;
+    soundService.playComplete();
+    hapticService.success();
+    const elapsedSeconds = Math.max(60, initialSeconds - secondsLeft);
     const elapsedMins = Math.max(1, Math.round(elapsedSeconds / 60));
     onFinishSession(habit.id, elapsedMins);
+    onClose();
+  };
+
+  const handleLogFullSession = () => {
+    soundService.playComplete();
+    hapticService.success();
+    onFinishSession(habit.id, targetMinutes);
     onClose();
   };
 
@@ -87,24 +111,31 @@ export const TimerModal: React.FC<TimerModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: 'rgba(5, 8, 14, 0.92)' }]}>
+      <View style={[styles.overlay, { backgroundColor: 'rgba(5, 8, 14, 0.85)' }]}>
         <View
           style={[
             styles.container,
             {
-              backgroundColor: theme.card,
-              borderColor: theme.cardBorder,
+              backgroundColor: theme.glassSurface || theme.card,
+              borderColor: theme.glassBorder || theme.cardBorder,
+              borderTopColor: theme.glassSpecular || theme.cardBorder,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.35,
+              shadowRadius: 20,
+              elevation: 14,
             },
           ]}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={theme.textMuted} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>مؤقت التركيز</Text>
-            <View style={{ width: 32 }} />
-          </View>
+          <ModalHeader
+            title="مؤقت التركيز"
+            icon="timer-outline"
+            iconColor={habit.color}
+            theme={theme}
+            isRTL={true}
+            onClose={onClose}
+          />
 
           {/* Habit Info */}
           <View style={styles.habitBadge}>
@@ -152,6 +183,31 @@ export const TimerModal: React.FC<TimerModalProps> = ({
             </View>
           </View>
 
+          {/* Quick Add Minutes Row */}
+          <View style={styles.quickAddRow}>
+            <TouchableOpacity
+              onPress={() => handleAddMinutes(5)}
+              style={[styles.quickAddChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            >
+              <Text style={[styles.quickAddText, { color: theme.text }]}>+5 د</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleAddMinutes(10)}
+              style={[styles.quickAddChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            >
+              <Text style={[styles.quickAddText, { color: theme.text }]}>+10 د</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleLogFullSession}
+              style={[styles.quickAddChip, { backgroundColor: `${habit.color}20`, borderColor: habit.color }]}
+            >
+              <Ionicons name="sparkles" size={12} color={habit.color} />
+              <Text style={[styles.quickAddText, { color: habit.color }]}>تسجيل {targetMinutes}د كاملة 🎯</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Controls */}
           <View style={styles.controlsRow}>
             <TouchableOpacity
@@ -165,7 +221,15 @@ export const TimerModal: React.FC<TimerModalProps> = ({
             <TouchableOpacity
               onPress={toggleRun}
               activeOpacity={0.85}
-              style={[styles.mainPlayBtn, { backgroundColor: habit.color }]}
+              style={[
+                styles.mainPlayBtn,
+                {
+                  backgroundColor: habit.color,
+                  shadowColor: habit.color,
+                  shadowOpacity: 0.45,
+                  shadowRadius: 12,
+                },
+              ]}
             >
               <Ionicons
                 name={isRunning ? 'pause' : 'play'}
@@ -185,7 +249,7 @@ export const TimerModal: React.FC<TimerModalProps> = ({
           </View>
 
           <Text style={[styles.hintText, { color: theme.textDim }]}>
-            اضغط علامة الصح ✅ في أي وقت لتسجيل الدقائق المنقضية
+            اضغط علامة الصح ✅ لتسجيل الدقائق المنقضية، أو زر التسجيل الكامل لإتمام الهدف فوراً
           </Text>
         </View>
       </View>
@@ -198,7 +262,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingTop: DIALOG_SAFE_TOP,
+    paddingBottom: DIALOG_SAFE_BOTTOM,
+    paddingHorizontal: 20,
   },
   container: {
     width: '100%',
@@ -304,5 +370,28 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: 12,
     textAlign: 'center',
+    lineHeight: 18,
+  },
+  quickAddRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  quickAddChip: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  quickAddText: {
+    fontSize: 11.5,
+    fontWeight: '700',
   },
 });

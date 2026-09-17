@@ -22,33 +22,35 @@ export interface ThemeColors {
   glassBorder: string;
   glassSpecular: string;
   glassSurface: string;
+  glassGlow: string;
 }
 
-// Exact HabitKit deep matte dark aesthetic
+// Exact HabitKit deep matte dark aesthetic with premium frosted glass
 export const DARK_THEME: ThemeColors = {
-  background: '#0E1015',
-  card: '#181A22',
-  cardBorder: '#242834',
+  background: '#0B0E14',
+  card: '#161923',
+  cardBorder: 'rgba(255, 255, 255, 0.08)',
   text: '#FFFFFF',
-  textMuted: '#8E95A5',
+  textMuted: '#8E96A8',
   textDim: '#5B6275',
   primary: '#7C83FD',
   primaryHover: '#6C73ED',
   danger: '#FF6565',
   success: '#2ECC71',
-  border: '#242834',
-  surface: '#20232E',
-  emptyCell: '#232632',
-  tabBarBg: '#15171F',
-  tabBarBorder: '#242834',
+  border: 'rgba(255, 255, 255, 0.08)',
+  surface: '#1D212E',
+  emptyCell: '#1A1D27',
+  tabBarBg: 'rgba(14, 17, 26, 0.90)',
+  tabBarBorder: 'rgba(255, 255, 255, 0.08)',
   tabActive: '#7C83FD',
   tabInactive: '#6E768A',
-  inputBg: '#151720',
-  modalOverlay: 'rgba(0, 0, 0, 0.85)',
-  glassBg: 'rgba(22, 26, 38, 0.72)',
-  glassBorder: 'rgba(255, 255, 255, 0.12)',
-  glassSpecular: 'rgba(255, 255, 255, 0.22)',
-  glassSurface: 'rgba(35, 40, 58, 0.65)',
+  inputBg: '#131620',
+  modalOverlay: 'rgba(3, 5, 10, 0.82)',
+  glassBg: 'rgba(16, 20, 32, 0.82)',
+  glassBorder: 'rgba(255, 255, 255, 0.09)',
+  glassSpecular: 'rgba(255, 255, 255, 0.26)',
+  glassSurface: 'rgba(22, 27, 42, 0.72)',
+  glassGlow: 'rgba(124, 131, 253, 0.22)',
 };
 
 export const LIGHT_THEME: ThemeColors = {
@@ -71,10 +73,11 @@ export const LIGHT_THEME: ThemeColors = {
   tabInactive: '#9CA3AF',
   inputBg: '#FFFFFF',
   modalOverlay: 'rgba(0, 0, 0, 0.45)',
-  glassBg: 'rgba(255, 255, 255, 0.78)',
-  glassBorder: 'rgba(255, 255, 255, 0.65)',
-  glassSpecular: 'rgba(255, 255, 255, 0.95)',
-  glassSurface: 'rgba(240, 243, 250, 0.75)',
+  glassBg: 'rgba(255, 255, 255, 0.82)',
+  glassBorder: 'rgba(255, 255, 255, 0.92)',
+  glassSpecular: 'rgba(255, 255, 255, 1.0)',
+  glassSurface: 'rgba(244, 246, 253, 0.82)',
+  glassGlow: 'rgba(99, 102, 241, 0.12)',
 };
 
 // Exact 21 colors from HabitKit palette screenshots (3 rows x 7 swatches)

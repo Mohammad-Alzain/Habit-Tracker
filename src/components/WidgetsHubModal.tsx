@@ -15,6 +15,8 @@ import { getTodayString } from '../utils/dateUtils';
 import { NotificationService } from '../services/notificationService';
 import { ModalHeader } from './ModalHeader';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
+import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
+import { Platform } from 'react-native';
 
 interface WidgetsHubModalProps {
   visible: boolean;
@@ -53,7 +55,17 @@ export const WidgetsHubModal: React.FC<WidgetsHubModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
-        <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <View
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: theme.glassSurface || theme.card,
+              borderColor: theme.glassBorder || theme.cardBorder,
+              borderTopColor: theme.glassSpecular || theme.border,
+            },
+            Platform.OS === 'web' && ({ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' } as any),
+          ]}
+        >
           {/* Header */}
           <ModalHeader
             title={t('widgetsHubTitle', language)}
@@ -320,14 +332,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: DIALOG_SAFE_TOP,
+    paddingBottom: DIALOG_SAFE_BOTTOM,
   },
   modalCard: {
     width: '100%',
-    maxHeight: '88%',
+    maxHeight: '100%',
     borderRadius: 24,
     borderWidth: 1.2,
     padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 24,
+    elevation: 12,
   },
   header: {
     flexDirection: 'row',

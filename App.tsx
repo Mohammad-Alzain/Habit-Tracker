@@ -20,6 +20,7 @@ import { AnalyticsScreen } from './src/screens/AnalyticsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { HabitModal } from './src/components/HabitModal';
 import { HabitDetailModal } from './src/components/HabitDetailModal';
+import { TimerModal } from './src/components/TimerModal';
 import { HabitTemplatesModal, HabitTemplate } from './src/components/HabitTemplatesModal';
 import { WidgetsHubModal } from './src/components/WidgetsHubModal';
 import { MilestonesModal } from './src/components/MilestonesModal';
@@ -28,6 +29,11 @@ import { HabitStackModal } from './src/components/HabitStackModal';
 import { ShareHabitCardModal } from './src/components/ShareHabitCardModal';
 import { ModalHeader } from './src/components/ModalHeader';
 import { t, isRTL, AppLanguage } from './src/utils/i18n';
+import { FULL_SCREEN_SAFE_TOP } from './src/constants/layout';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep native splash screen visible until store loads
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {
   const { habits, logs, stacks, themeMode, viewMode, settings, isLoaded } = useHabitStore();
@@ -54,6 +60,7 @@ export default function App() {
   const [stackModalVisible, setStackModalVisible] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [habitToShare, setHabitToShare] = useState<Habit | null>(null);
+  const [activeTimerHabit, setActiveTimerHabit] = useState<Habit | null>(null);
 
   useEffect(() => {
     habitStore.init();
@@ -73,12 +80,14 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (isLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isLoaded]);
+
   if (!isLoaded) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: DARK_THEME.background }]}>
-        <ActivityIndicator size="large" color="#7C83FD" />
-      </View>
-    );
+    return null;
   }
 
   const handleOpenAddModal = () => {
@@ -199,6 +208,7 @@ export default function App() {
           onToggleToday={handleToggleToday}
           onTogglePastDate={handleTogglePastDate}
           onAdjustNumeric={handleAdjustNumeric}
+          onStartTimer={(habit) => setActiveTimerHabit(habit)}
           onPressHabit={(habit) => setSelectedHabitForDetail(habit)}
           onDeleteHabit={handleDeleteHabit}
           onAddNew={handleOpenAddModal}
@@ -235,6 +245,8 @@ export default function App() {
           theme={theme}
           onClose={() => setSelectedHabitForDetail(null)}
           onToggleDate={handleTogglePastDate}
+          onStartTimer={(habit) => setActiveTimerHabit(habit)}
+          onToggleStreakFreeze={(habitId, dateStr) => habitStore.toggleStreakFreeze(habitId, dateStr)}
           onEditHabit={handleOpenEditModal}
           onDeleteHabit={handleDeleteHabit}
           onArchiveHabit={(id) => habitStore.archiveHabit(id)}
@@ -242,6 +254,18 @@ export default function App() {
           onShareHabit={(habit) => {
             setHabitToShare(habit);
             setShareModalVisible(true);
+          }}
+        />
+
+        {/* Modal: Interactive Focus Timer */}
+        <TimerModal
+          visible={!!activeTimerHabit}
+          habit={activeTimerHabit}
+          theme={theme}
+          onClose={() => setActiveTimerHabit(null)}
+          onFinishSession={(habitId, minutes) => {
+            habitStore.logTimerSession(habitId, minutes);
+            setActiveTimerHabit(null);
           }}
         />
 
@@ -269,7 +293,7 @@ export default function App() {
 
         {/* Modal: Deep Analytics */}
         <Modal visible={analyticsModalVisible} animationType="slide" onRequestClose={() => setAnalyticsModalVisible(false)}>
-          <View style={{ flex: 1, backgroundColor: theme.background }}>
+          <View style={{ flex: 1, backgroundColor: theme.background, paddingTop: FULL_SCREEN_SAFE_TOP }}>
             <ModalHeader
               title={t('analytics', language)}
               theme={theme}

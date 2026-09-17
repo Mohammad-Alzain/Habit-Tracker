@@ -20,6 +20,7 @@ import { NotificationService } from '../services/notificationService';
 import { ModalHeader, DialogHeader } from '../components/ModalHeader';
 import { hapticService } from '../services/hapticService';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
+import { FULL_SCREEN_SAFE_TOP, DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
 interface SettingsScreenProps {
   habits: Habit[];
@@ -444,7 +445,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 2. Modal: عام (General Settings) */}
       <Modal visible={generalModalVisible} transparent animationType="slide" onRequestClose={() => setGeneralModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('generalSettingsTitle', language)}
               theme={theme}
@@ -536,7 +537,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 3. Modal: تذكيرات فحص يومية (Daily Reminders) */}
       <Modal visible={remindersModalVisible} transparent animationType="slide" onRequestClose={() => setRemindersModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('dailyReminders', language)}
               theme={theme}
@@ -651,7 +652,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 4. Modal: السمة (Theme & Appearance) */}
       <Modal visible={themeModalVisible} transparent animationType="slide" onRequestClose={() => setThemeModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('theme', language)}
               theme={theme}
@@ -744,7 +745,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 5. Modal: اللغة (Language) */}
       <Modal visible={languageModalVisible} transparent animationType="slide" onRequestClose={() => setLanguageModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('language', language)}
               theme={theme}
@@ -790,7 +791,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 6. Modal: العادات المؤرشفة (Archived Habits) */}
       <Modal visible={archivedModalVisible} transparent animationType="slide" onRequestClose={() => setArchivedModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('archivedHabitsTitle', language)}
               theme={theme}
@@ -871,7 +872,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 7. Modal: أعد ترتيب العادات (Reorder / Sort Habits) */}
       <Modal visible={reorderModalVisible} transparent animationType="slide" onRequestClose={() => setReorderModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('reorderHabits', language)}
               theme={theme}
@@ -921,7 +922,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 8. Modal: إظهار المقدمة (Introduction Walkthrough) */}
       <Modal visible={introModalVisible} transparent animationType="slide" onRequestClose={() => setIntroModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('showIntro', language)}
               theme={theme}
@@ -1002,7 +1003,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 9. Modal: إظهار الجديد (What's New) */}
       <Modal visible={whatsNewModalVisible} transparent animationType="slide" onRequestClose={() => setWhatsNewModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('showWhatsNew', language)}
               theme={theme}
@@ -1041,7 +1042,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 10. Modal: ارسل رأيك (Send Feedback) */}
       <Modal visible={feedbackModalVisible} transparent animationType="slide" onRequestClose={() => setFeedbackModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('sendFeedback', language)}
               theme={theme}
@@ -1119,7 +1120,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {/* 11. Modal: استيراد وتصدير البيانات (Data Export / Import) */}
       <Modal visible={dataModalVisible} transparent animationType="slide" onRequestClose={() => setDataModalVisible(false)}>
         <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-          <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
             <DialogHeader
               title={t('importExport', language)}
               theme={theme}
@@ -1219,7 +1220,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       {pendingImportData && (
         <Modal visible={true} transparent animationType="fade">
           <View style={[styles.dataModalOverlay, { backgroundColor: theme.modalOverlay }]}>
-            <View style={[styles.dataModalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={[styles.dataModalCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
               <Text style={[styles.dataModalTitle, { color: theme.text, textAlign: 'center' }]}>تأكيد الاستيراد</Text>
               <Text style={[styles.dataActionSub, { color: theme.textMuted, textAlign: 'center', marginVertical: 14 }]}>
                 تم العثور على {pendingImportData.habits.length} عادة. كيف ترغب في الاستيراد؟
@@ -1253,7 +1254,7 @@ const styles = StyleSheet.create({
   },
   topHeader: {
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: FULL_SCREEN_SAFE_TOP,
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
@@ -1413,7 +1414,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingTop: DIALOG_SAFE_TOP,
+    paddingBottom: DIALOG_SAFE_BOTTOM,
+    paddingHorizontal: 20,
   },
   dataModalCard: {
     width: '100%',
@@ -1421,6 +1424,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     padding: 20,
     maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 14,
   },
   dataModalHeader: {
     flexDirection: 'row-reverse',

@@ -6,7 +6,7 @@ class SoundService {
 
   private isEnabled(): boolean {
     try {
-      const state = habitStore.getState();
+      const state = habitStore.getSnapshot();
       return state?.settings?.soundEffects ?? true;
     } catch {
       return true;

@@ -128,3 +128,88 @@ export function getArabicDayName(dayIndex: number): string {
 export function getArabicMonth(monthIndex: number): string {
   return ARABIC_MONTHS[monthIndex] || '';
 }
+
+// Cached 30-day Tile Matrix (6 cols x 5 rows) - generated once per day
+let cachedTileMatrixKey = '';
+let cachedTileMatrixColumns: string[][] | null = null;
+
+export function getCachedTileMatrixColumns(): string[][] {
+  const todayKey = getTodayString();
+  if (cachedTileMatrixKey === todayKey && cachedTileMatrixColumns) {
+    return cachedTileMatrixColumns;
+  }
+
+  const todayDate = parseISODate(todayKey);
+  const colsCount = 6;
+  const rowsCount = 5;
+  const columns: string[][] = [];
+
+  for (let c = 0; c < colsCount; c++) {
+    const col: string[] = [];
+    for (let r = 0; r < rowsCount; r++) {
+      const daysAgo = (colsCount - 1 - c) * rowsCount + (rowsCount - 1 - r);
+      const d = new Date(todayDate);
+      d.setDate(todayDate.getDate() - daysAgo);
+      col.push(formatDateToISO(d));
+    }
+    columns.push(col);
+  }
+
+  cachedTileMatrixKey = todayKey;
+  cachedTileMatrixColumns = columns;
+  return columns;
+}
+
+// Cached Month Days generator for calendar view
+const monthDaysCache = new Map<string, { dateStr: string; dayNum: number }[]>();
+
+export function getCachedMonthDays(year: number, monthIndex: number): { dateStr: string; dayNum: number }[] {
+  const cacheKey = `${year}_${monthIndex}`;
+  const existing = monthDaysCache.get(cacheKey);
+  if (existing) return existing;
+
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const days: { dateStr: string; dayNum: number }[] = [];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dObj = new Date(year, monthIndex, d);
+    days.push({
+      dateStr: formatDateToISO(dObj),
+      dayNum: d,
+    });
+  }
+
+  monthDaysCache.set(cacheKey, days);
+  return days;
+}
+
+// Cached 22-Week Heatmap Matrix for HabitDetailModal
+let cached22WeekKey = '';
+let cached22WeekColumns: string[][] | null = null;
+
+export function getCached22WeekColumns(): string[][] {
+  const todayKey = getTodayString();
+  if (cached22WeekKey === todayKey && cached22WeekColumns) {
+    return cached22WeekColumns;
+  }
+
+  const todayDate = parseISODate(todayKey);
+  const todayDayOfWeek = (todayDate.getDay() + 6) % 7; // Monday = 0 ... Sunday = 6
+  const startMatrixDate = new Date(todayDate);
+  startMatrixDate.setDate(todayDate.getDate() - todayDayOfWeek - 21 * 7);
+
+  const columns: string[][] = [];
+  for (let c = 0; c < 22; c++) {
+    const col: string[] = [];
+    for (let r = 0; r < 7; r++) {
+      const cellDate = new Date(startMatrixDate);
+      cellDate.setDate(startMatrixDate.getDate() + (c * 7 + r));
+      col.push(formatDateToISO(cellDate));
+    }
+    columns.push(col);
+  }
+
+  cached22WeekKey = todayKey;
+  cached22WeekColumns = columns;
+  return columns;
+}

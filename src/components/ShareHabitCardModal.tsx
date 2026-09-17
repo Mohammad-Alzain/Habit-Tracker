@@ -15,6 +15,7 @@ import { calculateHabitStats } from '../utils/streakUtils';
 import { getTodayString, parseISODate, getArabicMonth } from '../utils/dateUtils';
 import { ModalHeader } from './ModalHeader';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
+import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
 interface ShareHabitCardModalProps {
   visible: boolean;
@@ -94,7 +95,21 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.75)' }]}>
-        <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <View
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: theme.glassSurface || theme.card,
+              borderColor: theme.glassBorder || theme.cardBorder,
+              borderTopColor: theme.glassSpecular || theme.cardBorder,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.35,
+              shadowRadius: 20,
+              elevation: 14,
+            },
+          ]}
+        >
           {/* Header */}
           <ModalHeader
             title={t('shareTitle', language)}
@@ -193,7 +208,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingTop: DIALOG_SAFE_TOP,
+    paddingBottom: DIALOG_SAFE_BOTTOM,
+    paddingHorizontal: 20,
   },
   modalCard: {
     width: '100%',

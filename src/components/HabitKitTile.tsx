@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Animated } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
-import { getTodayString, parseISODate, getArabicMonth } from '../utils/dateUtils';
+import { getTodayString, parseISODate, getArabicMonth, getCachedTileMatrixColumns } from '../utils/dateUtils';
 import { calculateHabitStats } from '../utils/streakUtils';
 
 interface HabitKitTileProps {
@@ -11,6 +11,8 @@ interface HabitKitTileProps {
   logs: HabitLogs;
   theme: ThemeColors;
   onToggleToday: (habitId: string) => void;
+  onStartTimer?: (habit: Habit) => void;
+  onAdjustNumeric?: (habitId: string, delta: number) => void;
   onPressCard: (habit: Habit) => void;
   onDeleteHabit?: (habitId: string) => void;
 }
@@ -20,71 +22,45 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
   logs,
   theme,
   onToggleToday,
+  onStartTimer,
+  onAdjustNumeric,
   onPressCard,
   onDeleteHabit,
 }) => {
   const todayStr = getTodayString();
   const todayDate = parseISODate(todayStr);
   const habitLogs = logs[habit.id] || {};
+  const currentTodayVal = habitLogs[todayStr] || 0;
   const targetThreshold = habit.targetValue || habit.targetPerDay || 1;
-  const isTodayCompleted = (habitLogs[todayStr] || 0) >= targetThreshold;
+  const isTodayCompleted = currentTodayVal >= targetThreshold;
   const stats = calculateHabitStats(habit, logs);
   const checkScale = useRef(new Animated.Value(1)).current;
 
   const currentMonthName = getArabicMonth(todayDate.getMonth());
-  const currentYear = todayDate.getFullYear();
+  const cachedCols = getCachedTileMatrixColumns();
 
-  const handleCheckPress = () => {
+  const handleActionPress = () => {
     Animated.sequence([
       Animated.timing(checkScale, {
-        toValue: 1.35,
-        duration: 90,
+        toValue: 1.3,
+        duration: 80,
         useNativeDriver: true,
       }),
       Animated.spring(checkScale, {
         toValue: 1,
         friction: 4,
-        tension: 80,
+        tension: 90,
         useNativeDriver: true,
       }),
     ]).start();
-    onToggleToday(habit.id);
-  };
 
-  // HabitKit Mini Matrix: 6 columns x 5 rows = 30 days
-  const colsCount = 6;
-  const rowsCount = 5;
-  const totalDays = colsCount * rowsCount;
-
-  const columns: { dateStr: string; isCompleted: boolean; isToday: boolean }[][] = [];
-
-  for (let c = 0; c < colsCount; c++) {
-    const col: { dateStr: string; isCompleted: boolean; isToday: boolean }[] = [];
-    for (let r = 0; r < rowsCount; r++) {
-      const daysAgo = (colsCount - 1 - c) * rowsCount + (rowsCount - 1 - r);
-      const d = new Date(todayDate);
-      d.setDate(todayDate.getDate() - daysAgo);
-
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dStr = `${y}-${m}-${day}`;
-
-      const completed = (habitLogs[dStr] || 0) >= targetThreshold;
-      col.push({
-        dateStr: dStr,
-        isCompleted: completed,
-        isToday: dStr === todayStr,
-      });
+    if (habit.type === 'timer' && onStartTimer && !isTodayCompleted) {
+      onStartTimer(habit);
+    } else if (habit.type === 'numeric' && onAdjustNumeric && !isTodayCompleted) {
+      onAdjustNumeric(habit.id, 1);
+    } else {
+      onToggleToday(habit.id);
     }
-    columns.push(col);
-  }
-
-  const handleDelete = () => {
-    Alert.alert('حذف العادة', `هل تريد حذف عادة "${habit.name}" نهائياً؟`, [
-      { text: 'إلغاء', style: 'cancel' },
-      { text: 'حذف', style: 'destructive', onPress: () => onDeleteHabit && onDeleteHabit(habit.id) },
-    ]);
   };
 
   return (
@@ -96,13 +72,16 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
         {
           backgroundColor: theme.glassSurface || theme.card,
           borderColor: isTodayCompleted ? `${habit.color}60` : (theme.glassBorder || theme.cardBorder),
-          borderTopColor: theme.glassSpecular || 'rgba(255,255,255,0.22)',
+          borderTopColor: theme.glassSpecular || 'rgba(255,255,255,0.26)',
+          borderTopWidth: 1.2,
           shadowColor: isTodayCompleted ? habit.color : '#000',
-          shadowOpacity: isTodayCompleted ? 0.25 : 0.12,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: isTodayCompleted ? 0.32 : 0.14,
+          shadowRadius: isTodayCompleted ? 10 : 5,
         },
       ]}
     >
-      {/* Top row: Title and Checkmark */}
+      {/* Top row: Title and Checkmark / Timer / Stepper */}
       <View style={styles.topRow}>
         <View style={styles.titleCol}>
           <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
@@ -112,6 +91,24 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
             <Text style={[styles.subtitle, { color: theme.textDim }]}>
               {currentMonthName}
             </Text>
+
+            {habit.type === 'timer' && (
+              <View style={[styles.typeBadge, { backgroundColor: `${habit.color}20`, borderColor: `${habit.color}40` }]}>
+                <Ionicons name="timer-outline" size={10} color={habit.color} />
+                <Text style={[styles.typeBadgeText, { color: habit.color }]}>
+                  {currentTodayVal > 0 ? `${currentTodayVal}/${targetThreshold}د` : `${targetThreshold}د`}
+                </Text>
+              </View>
+            )}
+
+            {habit.type === 'numeric' && (
+              <View style={[styles.typeBadge, { backgroundColor: `${habit.color}20`, borderColor: `${habit.color}40` }]}>
+                <Text style={[styles.typeBadgeText, { color: habit.color }]}>
+                  {currentTodayVal}/{targetThreshold} {habit.unit || ''}
+                </Text>
+              </View>
+            )}
+
             {stats.currentStreak > 0 && (
               <View style={[styles.miniStreakPill, { backgroundColor: `${habit.color}20` }]}>
                 <Ionicons name="flame" size={10} color={habit.color} />
@@ -120,6 +117,7 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
                 </Text>
               </View>
             )}
+
             {habit.reminderEnabled && habit.reminderTime && (
               <View style={styles.miniReminderPill}>
                 <Ionicons name="notifications-outline" size={10} color="#00CEC9" />
@@ -139,7 +137,7 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
 
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={handleCheckPress}
+          onPress={handleActionPress}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Animated.View
@@ -152,28 +150,36 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
               },
             ]}
           >
-            {isTodayCompleted && (
+            {isTodayCompleted ? (
               <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-            )}
+            ) : habit.type === 'timer' ? (
+              <Ionicons name="play" size={12} color={habit.color} style={{ marginLeft: 1 }} />
+            ) : habit.type === 'numeric' ? (
+              <Ionicons name="add" size={13} color={habit.color} />
+            ) : null}
           </Animated.View>
         </TouchableOpacity>
       </View>
 
       {/* Mini Dot Heatmap Matrix */}
       <View style={styles.matrixContainer}>
-        {columns.map((col, cIdx) => (
+        {cachedCols.map((col, cIdx) => (
           <View key={`c-${cIdx}`} style={styles.matrixCol}>
-            {col.map((cell) => {
-              const bg = cell.isCompleted ? habit.color : theme.emptyCell;
+            {col.map((dStr) => {
+              const count = habitLogs[dStr] || 0;
+              const isComp = count >= targetThreshold;
+              const isToday = dStr === todayStr;
+              const bg = isComp ? habit.color : theme.emptyCell;
+
               return (
                 <View
-                  key={cell.dateStr}
+                  key={dStr}
                   style={[
                     styles.matrixDot,
                     {
                       backgroundColor: bg,
-                      borderColor: cell.isToday ? habit.color : 'transparent',
-                      borderWidth: cell.isToday && !cell.isCompleted ? 1 : 0,
+                      borderColor: isToday ? habit.color : 'transparent',
+                      borderWidth: isToday && !isComp ? 1 : 0,
                     },
                   ]}
                 />
@@ -186,7 +192,15 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
   );
 };
 
-export const HabitKitTile = memo(HabitKitTileComponent);
+const arePropsEqual = (prev: HabitKitTileProps, next: HabitKitTileProps) => {
+  return (
+    prev.habit === next.habit &&
+    prev.logs[prev.habit.id] === next.logs[next.habit.id] &&
+    prev.theme === next.theme
+  );
+};
+
+export const HabitKitTile = memo(HabitKitTileComponent, arePropsEqual);
 
 const styles = StyleSheet.create({
   tile: {
@@ -220,6 +234,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     marginTop: 3,
+    flexWrap: 'wrap',
+  },
+  typeBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 0.8,
+  },
+  typeBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
   },
   miniStreakPill: {
     flexDirection: 'row-reverse',
@@ -270,3 +298,4 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 });
+

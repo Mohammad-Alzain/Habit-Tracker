@@ -10,20 +10,28 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
   const todayDate = parseISODate(todayStr);
   const targetThreshold = habit.targetValue || habit.targetPerDay || 1;
 
-  // Check completions for all days backwards from today
+  // Check completions for all days backwards from today with Streak Freeze protection
   let currentStreak = 0;
   let checkDate = new Date(todayDate);
+  const frozenSet = new Set(habit.streakFreezeDays || []);
 
   const todayCompleted = (habitLogs[todayStr] || 0) >= targetThreshold;
-  if (!todayCompleted) {
+  const todayFrozen = frozenSet.has(todayStr);
+
+  if (!todayCompleted && !todayFrozen) {
     checkDate.setDate(checkDate.getDate() - 1);
   }
 
   while (true) {
     const dStr = formatDateToISO(checkDate);
     const count = habitLogs[dStr] || 0;
+    const isFrozen = frozenSet.has(dStr);
+
     if (count >= targetThreshold) {
       currentStreak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else if (isFrozen) {
+      // Day is protected by freeze - streak doesn't increase but doesn't break
       checkDate.setDate(checkDate.getDate() - 1);
     } else {
       break;
@@ -31,9 +39,10 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
   }
 
   // Calculate Longest Streak
-  const completedDates = Object.keys(habitLogs)
+  const validDates = Object.keys(habitLogs)
     .filter((d) => (habitLogs[d] || 0) >= targetThreshold)
-    .sort();
+    .concat(habit.streakFreezeDays || []);
+  const completedDates = Array.from(new Set(validDates)).sort();
 
   let longestStreak = 0;
   let runningStreak = 0;

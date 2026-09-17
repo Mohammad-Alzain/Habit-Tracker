@@ -13,6 +13,7 @@ import { ThemeColors } from '../constants/theme';
 import { formatFriendlyDate } from '../utils/dateUtils';
 import { DialogHeader } from './ModalHeader';
 import { isRTL, AppLanguage } from '../utils/i18n';
+import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
 export interface ChartDetailData {
   type: 'weekday' | 'day_circle' | 'year_pixel';
@@ -61,7 +62,21 @@ export const ChartDetailModal: React.FC<ChartDetailModalProps> = ({
   return (
     <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
-        <View style={[styles.container, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <View
+          style={[
+            styles.container,
+            {
+              backgroundColor: theme.glassSurface || theme.card,
+              borderColor: theme.glassBorder || theme.cardBorder,
+              borderTopColor: theme.glassSpecular || theme.cardBorder,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.35,
+              shadowRadius: 20,
+              elevation: 14,
+            },
+          ]}
+        >
           {/* Header */}
           <DialogHeader
             title={data.title}
@@ -162,7 +177,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingTop: DIALOG_SAFE_TOP,
+    paddingBottom: DIALOG_SAFE_BOTTOM,
+    paddingHorizontal: 20,
   },
   container: {
     width: '100%',

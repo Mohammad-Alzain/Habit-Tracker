@@ -330,6 +330,30 @@ export const habitStore = {
     schedulePersist();
   },
 
+  toggleStreakFreeze(habitId: string, dateStr: string = getTodayString()): boolean {
+    let isFrozenNow = false;
+    state = {
+      ...state,
+      habits: state.habits.map((h) => {
+        if (h.id === habitId) {
+          const currentFreezes = new Set(h.streakFreezeDays || []);
+          if (currentFreezes.has(dateStr)) {
+            currentFreezes.delete(dateStr);
+            isFrozenNow = false;
+          } else {
+            currentFreezes.add(dateStr);
+            isFrozenNow = true;
+          }
+          return { ...h, streakFreezeDays: Array.from(currentFreezes) };
+        }
+        return h;
+      }),
+    };
+    emitChange();
+    schedulePersist();
+    return isFrozenNow;
+  },
+
   toggleTheme(): void {
     state = {
       ...state,

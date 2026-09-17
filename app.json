@@ -1,23 +1,38 @@
 {
   "expo": {
-    "name": "HabitFlow - متتبع العادات",
+    "name": "Habit Flow",
     "slug": "habit-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "backgroundColor": "#0B0F17",
+    "primaryColor": "#7C83FD",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B0F17"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "userInterfaceStyle": "dark",
+      "backgroundColor": "#0B0F17"
     },
     "android": {
+      "backgroundColor": "#0B0F17",
+      "userInterfaceStyle": "dark",
       "adaptiveIcon": {
         "backgroundColor": "#0B0F17",
-        "foregroundImage": "./assets/icon.png"
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0B0F17",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#0B0F17"
+        }
       },
       "predictiveBackGestureEnabled": false,
       "navigationBar": {
@@ -27,7 +42,8 @@
       "statusBar": {
         "translucent": true,
         "backgroundColor": "#00000000"
-      }
+      },
+      "package": "com.mohammadalzainsteam.habittracker"
     },
     "web": {
       "favicon": "./assets/icon.png"
@@ -37,6 +53,21 @@
         "projectId": "01965a6c-f71d-4cfe-96ac-fecce45d53f0"
       }
     },
-    "owner": "mohammad-alzains-team"
+    "owner": "mohammad-alzains-team",
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0F17",
+          "image": "./assets/splash-icon.png",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0B0F17"
+          },
+          "imageWidth": 200,
+          "resizeMode": "contain"
+        }
+      ]
+    ]
   }
 }

@@ -4,7 +4,7 @@ import { habitStore } from '../store/habitStore';
 class HapticService {
   private isEnabled(): boolean {
     try {
-      const state = habitStore.getState();
+      const state = habitStore.getSnapshot();
       return state?.settings?.hapticFeedback ?? true;
     } catch {
       return true;

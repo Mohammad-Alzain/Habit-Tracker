@@ -15,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitType, HabitCategory, TimeOfDay, HabitGoal, HabitGoalType, HabitMode, TrackingType, DayOfWeek } from '../types/habit';
 import { HABITKIT_PALETTE, HABIT_ICONS, ThemeColors } from '../constants/theme';
+import { FULL_SCREEN_SAFE_TOP, DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
+import { DialogHeader } from './ModalHeader';
 
 interface HabitModalProps {
   visible: boolean;
@@ -63,6 +65,8 @@ export const HabitModal: React.FC<HabitModalProps> = ({
   const [selectedColor, setSelectedColor] = useState(HABITKIT_PALETTE[6]); // Coral / Salmon default
   const [selectedIcon, setSelectedIcon] = useState('pulse-outline');
   const [mode, setMode] = useState<HabitMode>('build'); // 'build' vs 'quit'
+  const [habitType, setHabitType] = useState<HabitType>('boolean');
+  const [timerMinutes, setTimerMinutes] = useState<number>(20);
   const [trackingType, setTrackingType] = useState<TrackingType>('step_by_step');
   const [targetPerDay, setTargetPerDay] = useState(1);
   const [category, setCategory] = useState<HabitCategory>('learning');
@@ -88,6 +92,8 @@ export const HabitModal: React.FC<HabitModalProps> = ({
       setSelectedColor(habitToEdit.color);
       setSelectedIcon(habitToEdit.icon);
       setMode(habitToEdit.mode || 'build');
+      setHabitType(habitToEdit.type || (habitToEdit.trackingType === 'custom_value' ? 'numeric' : 'boolean'));
+      setTimerMinutes(habitToEdit.type === 'timer' ? (habitToEdit.targetValue || 20) : 20);
       setTrackingType(habitToEdit.trackingType || 'step_by_step');
       setTargetPerDay(habitToEdit.targetValue || habitToEdit.targetPerDay || 1);
       setCategory(habitToEdit.category || 'learning');
@@ -116,6 +122,8 @@ export const HabitModal: React.FC<HabitModalProps> = ({
       setSelectedColor(HABITKIT_PALETTE[6]); // Coral / Salmon
       setSelectedIcon('pulse-outline');
       setMode('build');
+      setHabitType('boolean');
+      setTimerMinutes(20);
       setTrackingType('step_by_step');
       setTargetPerDay(1);
       setCategory('learning');
@@ -144,16 +152,30 @@ export const HabitModal: React.FC<HabitModalProps> = ({
         ? `ستريك ${goalTargetValue} يوم`
         : `${goalTargetValue} / شهر`;
 
+    const finalTargetValue =
+      habitType === 'timer'
+        ? Math.max(1, timerMinutes)
+        : habitType === 'numeric'
+        ? Math.max(1, targetPerDay)
+        : 1;
+
+    const finalUnit =
+      habitType === 'timer'
+        ? 'دقيقة'
+        : habitType === 'numeric'
+        ? customUnit.trim() || undefined
+        : undefined;
+
     onSave({
       name: name.trim(),
       description: description.trim(),
       icon: selectedIcon,
       color: selectedColor,
       mode,
-      type: trackingType === 'custom_value' ? 'numeric' : 'boolean',
-      trackingType,
-      targetValue: targetPerDay,
-      unit: customUnit.trim() || undefined,
+      type: habitType,
+      trackingType: habitType === 'numeric' ? 'custom_value' : 'step_by_step',
+      targetValue: finalTargetValue,
+      unit: finalUnit,
       category,
       timeOfDay: 'anytime',
       goalFrequency: computedGoalTitle,
@@ -431,68 +453,159 @@ export const HabitModal: React.FC<HabitModalProps> = ({
                 </ScrollView>
               </View>
 
-              {/* How should completions be tracked matching Image 2 */}
+              {/* Habit Completion Modes: Boolean, Timer, Numeric */}
               <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>كيف يجب تتبع الإنجازات؟</Text>
+                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>نمط تسجيل العادة 🎯</Text>
                 <View style={[styles.segmentedControl, { backgroundColor: theme.card, borderColor: theme.border }]}>
                   <TouchableOpacity
-                    onPress={() => setTrackingType('custom_value')}
+                    onPress={() => setHabitType('numeric')}
                     style={[
                       styles.segmentBtn,
-                      trackingType === 'custom_value' && [styles.segmentBtnActive, { backgroundColor: theme.surface }],
+                      habitType === 'numeric' && [styles.segmentBtnActive, { backgroundColor: theme.surface }],
                     ]}
                   >
-                    <Text style={[styles.segmentText, { color: trackingType === 'custom_value' ? theme.text : theme.textMuted }]}>
-                      قيمة مخصصة
+                    <Text style={[styles.segmentText, { color: habitType === 'numeric' ? theme.text : theme.textMuted }]}>
+                      عداد كمي 📊
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    onPress={() => setTrackingType('step_by_step')}
+                    onPress={() => setHabitType('timer')}
                     style={[
                       styles.segmentBtn,
-                      trackingType === 'step_by_step' && [styles.segmentBtnActive, { backgroundColor: theme.surface }],
+                      habitType === 'timer' && [styles.segmentBtnActive, { backgroundColor: theme.surface }],
                     ]}
                   >
-                    <Text style={[styles.segmentText, { color: trackingType === 'step_by_step' ? theme.text : theme.textMuted }]}>
-                      خطوة بخطوة
+                    <Text style={[styles.segmentText, { color: habitType === 'timer' ? theme.text : theme.textMuted }]}>
+                      مؤقت تركيز ⏱️
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setHabitType('boolean')}
+                    style={[
+                      styles.segmentBtn,
+                      habitType === 'boolean' && [styles.segmentBtnActive, { backgroundColor: theme.surface }],
+                    ]}
+                  >
+                    <Text style={[styles.segmentText, { color: habitType === 'boolean' ? theme.text : theme.textMuted }]}>
+                      ضغطة إنجاز ✅
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={[styles.fieldHint, { color: theme.textDim }]}>
-                  {trackingType === 'custom_value'
-                    ? "أدخل أي قيمة عند الإكمال (مثل 'صفحات القراءة')"
-                    : 'نقرة واحدة لإنجاز العادة مباشرة'}
-                </Text>
-              </View>
 
-              {/* Completions Per Day Stepper matching Image 2 */}
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>عدد مرات الإتمام في اليوم</Text>
-                <View style={[styles.stepperRowCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <View style={styles.stepperActions}>
-                    <TouchableOpacity
-                      onPress={() => setTargetPerDay(Math.max(1, targetPerDay - 1))}
-                      style={[styles.stepBtn, { backgroundColor: theme.surface }]}
-                    >
-                      <Ionicons name="remove" size={18} color={theme.text} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => setTargetPerDay(targetPerDay + 1)}
-                      style={[styles.stepBtn, { backgroundColor: theme.surface }]}
-                    >
-                      <Ionicons name="add" size={18} color={theme.text} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <Text style={[styles.stepValText, { color: theme.text }]}>
-                    {targetPerDay} / يوم
+                {habitType === 'boolean' && (
+                  <Text style={[styles.fieldHint, { color: theme.textDim }]}>
+                    نقرة واحدة سريعة على المربع أو البطاقة لتسجيل إنجاز اليوم.
                   </Text>
-                </View>
-                <Text style={[styles.fieldHint, { color: theme.textDim }]}>
-                  سيتم ملء المربع بالكامل عند الوصول إلى هذا الرقم
-                </Text>
+                )}
+
+                {habitType === 'timer' && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={[styles.fieldLabel, { color: theme.textMuted, fontSize: 12 }]}>
+                      المدة المستهدفة للجلسة (بالدقائق):
+                    </Text>
+                    <View style={styles.timerPresetRow}>
+                      {[15, 20, 25, 30, 45, 60].map((mins) => {
+                        const isSel = timerMinutes === mins;
+                        return (
+                          <TouchableOpacity
+                            key={mins}
+                            onPress={() => setTimerMinutes(mins)}
+                            style={[
+                              styles.timerPresetChip,
+                              {
+                                backgroundColor: isSel ? '#7C83FD' : theme.card,
+                                borderColor: isSel ? '#7C83FD' : theme.border,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.timerPresetText, { color: isSel ? '#FFFFFF' : theme.text }]}>
+                              {mins === 25 ? '25د 🍅' : `${mins}د`}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <View style={[styles.stepperRowCard, { backgroundColor: theme.card, borderColor: theme.border, marginTop: 8 }]}>
+                      <View style={styles.stepperActions}>
+                        <TouchableOpacity
+                          onPress={() => setTimerMinutes(Math.max(5, timerMinutes - 5))}
+                          style={[styles.stepBtn, { backgroundColor: theme.surface }]}
+                        >
+                          <Ionicons name="remove" size={18} color={theme.text} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => setTimerMinutes(timerMinutes + 5)}
+                          style={[styles.stepBtn, { backgroundColor: theme.surface }]}
+                        >
+                          <Ionicons name="add" size={18} color={theme.text} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <Text style={[styles.stepValText, { color: theme.text }]}>
+                        {timerMinutes} دقيقة / جلسة
+                      </Text>
+                    </View>
+
+                    <Text style={[styles.fieldHint, { color: theme.textDim }]}>
+                      عند النقر على العادة، سيفتح مؤقت تفاعلي لتسجيل الجلسة بدقة.
+                    </Text>
+                  </View>
+                )}
+
+                {habitType === 'numeric' && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={[styles.fieldLabel, { color: theme.textMuted, fontSize: 12 }]}>
+                      الهدف الرقمي اليومي والوحدة:
+                    </Text>
+                    <View style={[styles.stepperRowCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                      <View style={styles.stepperActions}>
+                        <TouchableOpacity
+                          onPress={() => setTargetPerDay(Math.max(1, targetPerDay - 1))}
+                          style={[styles.stepBtn, { backgroundColor: theme.surface }]}
+                        >
+                          <Ionicons name="remove" size={18} color={theme.text} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => setTargetPerDay(targetPerDay + 1)}
+                          style={[styles.stepBtn, { backgroundColor: theme.surface }]}
+                        >
+                          <Ionicons name="add" size={18} color={theme.text} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <Text style={[styles.stepValText, { color: theme.text }]}>
+                        {targetPerDay} {customUnit ? customUnit : 'مرات'} / يوم
+                      </Text>
+                    </View>
+
+                    <TextInput
+                      value={customUnit}
+                      onChangeText={setCustomUnit}
+                      placeholder="اسم الوحدة (مثال: أكواب، صفحة، تمرين، مل)"
+                      placeholderTextColor={theme.textDim}
+                      style={[
+                        styles.inputBox,
+                        {
+                          backgroundColor: theme.card,
+                          color: theme.text,
+                          borderColor: theme.border,
+                          marginTop: 8,
+                          height: 44,
+                          fontSize: 13,
+                        },
+                      ]}
+                    />
+
+                    <Text style={[styles.fieldHint, { color: theme.textDim }]}>
+                      سيتم ملء المربع تدريجياً كلما سجلت تقدماً في هذا الرقم.
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           )}
@@ -522,13 +635,13 @@ export const HabitModal: React.FC<HabitModalProps> = ({
         {/* Habit Reminder Configuration Modal */}
         <Modal visible={reminderModalVisible} transparent animationType="fade" onRequestClose={() => setReminderModalVisible(false)}>
           <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-            <View style={[styles.reminderCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-              <View style={styles.reminderHeader}>
-                <Text style={[styles.reminderTitle, { color: theme.text }]}>ضبط تذكير العادة 🔔</Text>
-                <TouchableOpacity onPress={() => setReminderModalVisible(false)}>
-                  <Ionicons name="close" size={22} color={theme.textMuted} />
-                </TouchableOpacity>
-              </View>
+            <View style={[styles.reminderCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
+              <DialogHeader
+                title="ضبط تذكير العادة 🔔"
+                theme={theme}
+                isRTL={true}
+                onClose={() => setReminderModalVisible(false)}
+              />
 
               {/* Toggle switch */}
               <View style={styles.reminderToggleRow}>
@@ -585,13 +698,13 @@ export const HabitModal: React.FC<HabitModalProps> = ({
         {/* Custom Goal Modal */}
         <Modal visible={goalModalVisible} transparent animationType="fade" onRequestClose={() => setGoalModalVisible(false)}>
           <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
-            <View style={[styles.reminderCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-              <View style={styles.reminderHeader}>
-                <Text style={[styles.reminderTitle, { color: theme.text }]}>تحديد هدف العادة 🎯</Text>
-                <TouchableOpacity onPress={() => setGoalModalVisible(false)}>
-                  <Ionicons name="close" size={22} color={theme.textMuted} />
-                </TouchableOpacity>
-              </View>
+            <View style={[styles.reminderCard, { backgroundColor: theme.glassSurface || theme.card, borderColor: theme.glassBorder || theme.cardBorder, borderTopColor: theme.glassSpecular || theme.cardBorder }]}>
+              <DialogHeader
+                title="تحديد هدف العادة 🎯"
+                theme={theme}
+                isRTL={true}
+                onClose={() => setGoalModalVisible(false)}
+              />
 
               {/* Goal Type Tabs */}
               <View style={[styles.goalTypeTabs, { backgroundColor: theme.surface }]}>
@@ -761,7 +874,7 @@ const styles = StyleSheet.create({
   },
   topHeader: {
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: FULL_SCREEN_SAFE_TOP,
     paddingHorizontal: 16,
     paddingBottom: 10,
   },
@@ -946,6 +1059,22 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
+  timerPresetRow: {
+    flexDirection: 'row-reverse',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginVertical: 6,
+  },
+  timerPresetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  timerPresetText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
   stepperActions: {
     flexDirection: 'row',
     gap: 8,
@@ -989,13 +1118,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingTop: DIALOG_SAFE_TOP,
+    paddingBottom: DIALOG_SAFE_BOTTOM,
+    paddingHorizontal: 20,
   },
   reminderCard: {
     width: '100%',
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1.5,
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 14,
   },
   reminderHeader: {
     flexDirection: 'row-reverse',
