@@ -79,19 +79,22 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
             <Ionicons name="add" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
-          {/* Stats chart button */}
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={() => {
-              hapticService.light();
-              soundService.playTap();
-              onOpenAnalytics();
-            }}
-            style={[styles.circleBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-          >
-            <Ionicons name="bar-chart-outline" size={18} color={theme.text} />
-          </TouchableOpacity>
+          {/* Roadmap button */}
+          {onOpenRoadmap && (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                hapticService.light();
+                soundService.playTap();
+                onOpenRoadmap();
+              }}
+              style={[styles.circleBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+              accessibilityLabel="خريطة الالتزامات"
+            >
+              <Ionicons name="trail-sign-outline" size={18} color={theme.text} />
+            </TouchableOpacity>
+          )}
 
           {/* Filter Toggle Button */}
           {onToggleFilter && (

@@ -162,6 +162,39 @@ export function getCachedTileMatrixColumns(): string[][] {
   return columns;
 }
 
+// Cached Full Card Matrix (24 cols x 7 rows) - matching HabitKit full card layout in screenshot
+let cachedFullCardMatrixKey = '';
+let cachedFullCardMatrixColumns: string[][] | null = null;
+
+export function getCachedFullCardMatrixColumns(colsCount: number = 24): string[][] {
+  const todayKey = getTodayString();
+  const cacheKey = `${todayKey}_${colsCount}`;
+  if (cachedFullCardMatrixKey === cacheKey && cachedFullCardMatrixColumns) {
+    return cachedFullCardMatrixColumns;
+  }
+
+  const todayDate = parseISODate(todayKey);
+  const rowsCount = 7;
+  const todayDayOfWeek = (todayDate.getDay() + 6) % 7;
+  const startMatrixDate = new Date(todayDate);
+  startMatrixDate.setDate(todayDate.getDate() - todayDayOfWeek - (colsCount - 1) * 7);
+
+  const columns: string[][] = [];
+  for (let c = 0; c < colsCount; c++) {
+    const col: string[] = [];
+    for (let r = 0; r < rowsCount; r++) {
+      const cellDate = new Date(startMatrixDate);
+      cellDate.setDate(startMatrixDate.getDate() + (c * 7 + r));
+      col.push(formatDateToISO(cellDate));
+    }
+    columns.push(col);
+  }
+
+  cachedFullCardMatrixKey = cacheKey;
+  cachedFullCardMatrixColumns = columns;
+  return columns;
+}
+
 // Cached Month Days generator for calendar view
 const monthDaysCache = new Map<string, { dateStr: string; dayNum: number }[]>();
 

@@ -12,15 +12,64 @@ interface FloatingDockProps {
   theme: ThemeColors;
 }
 
-const MODES: { id: ViewMode; icon: string; size: number }[] = [
-  { id: 'heatmap', icon: 'grid', size: 18 },
-  { id: 'checklist', icon: 'list', size: 20 },
-  { id: 'compact', icon: 'calendar-outline', size: 19 },
-];
-
 const BUTTON_WIDTH = 48;
 const BUTTON_GAP = 6;
 const STEP_DISTANCE = BUTTON_WIDTH + BUTTON_GAP; // 54px
+
+/**
+ * Pixel-perfect icon for Mode 1 (3-column mini grid / heatmap) matching screenshot media_1789773068963.png
+ */
+const MiniGridIcon: React.FC<{ color: string }> = ({ color }) => (
+  <View style={iconStyles.miniGridWrap}>
+    {[0, 1, 2, 3].map((i) => (
+      <View key={i} style={iconStyles.miniGridRow}>
+        <View style={[iconStyles.miniGridBar, { backgroundColor: color }]} />
+        <View style={[iconStyles.miniGridBar, { backgroundColor: color }]} />
+      </View>
+    ))}
+  </View>
+);
+
+/**
+ * Pixel-perfect icon for Mode 2 (Horizontal weekly table checklist) matching screenshot media_1789773068963.png
+ */
+const ChecklistTableIcon: React.FC<{ color: string }> = ({ color }) => (
+  <View style={iconStyles.checklistWrap}>
+    {[0, 1, 2].map((i) => (
+      <View key={i} style={iconStyles.checklistRow}>
+        <Ionicons name="checkmark" size={10} color={color} style={iconStyles.checkMark} />
+        <View style={[iconStyles.checklistLine, { backgroundColor: color }]} />
+      </View>
+    ))}
+  </View>
+);
+
+/**
+ * Pixel-perfect icon for Mode 3 (Full calendar card with header & dots) matching screenshot media_1789773068963.png
+ */
+const FullCalendarCardIcon: React.FC<{ color: string }> = ({ color }) => (
+  <View style={[iconStyles.cardFrame, { borderColor: color }]}>
+    {/* Top header bar in card */}
+    <View style={[iconStyles.cardTopBar, { backgroundColor: color }]} />
+    {/* Dot matrix rows */}
+    <View style={iconStyles.dotRow}>
+      <View style={[iconStyles.dot, { backgroundColor: color }]} />
+      <View style={[iconStyles.dot, { backgroundColor: color }]} />
+      <View style={[iconStyles.dot, { backgroundColor: color }]} />
+    </View>
+    <View style={iconStyles.dotRow}>
+      <View style={[iconStyles.dot, { backgroundColor: color }]} />
+      <View style={[iconStyles.dot, { backgroundColor: color }]} />
+      <View style={[iconStyles.dot, { backgroundColor: color }]} />
+    </View>
+  </View>
+);
+
+const MODES: { id: ViewMode; renderIcon: (color: string) => React.ReactNode }[] = [
+  { id: 'heatmap', renderIcon: (c) => <MiniGridIcon color={c} /> },
+  { id: 'checklist', renderIcon: (c) => <ChecklistTableIcon color={c} /> },
+  { id: 'compact', renderIcon: (c) => <FullCalendarCardIcon color={c} /> },
+];
 
 const FloatingDockComponent: React.FC<FloatingDockProps> = ({
   viewMode,
@@ -30,19 +79,24 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
   const activeIndex = MODES.findIndex((m) => m.id === viewMode);
   const slideAnim = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
   const bounceScale = useRef(new Animated.Value(1)).current;
+  
+  // Dock micro-scale animation (user: يكبر بنسبة قليييلة جدا جدا لاتكاد ترا)
+  const dockScale = useRef(new Animated.Value(1)).current;
+  // Dock shimmer / shine animation (user: بالاضافة لان يجب ان يلمع قليلا البار)
+  const shineAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const targetIdx = MODES.findIndex((m) => m.id === viewMode);
     if (targetIdx >= 0) {
       Animated.parallel([
-        // Premium fluid gliding spring
+        // Fluid gliding spring for sliding indicator
         Animated.spring(slideAnim, {
           toValue: targetIdx,
           friction: 8.5,
           tension: 78,
           useNativeDriver: true,
         }),
-        // Subtle organic settle
+        // Inner indicator subtle settle
         Animated.sequence([
           Animated.timing(bounceScale, {
             toValue: 0.96,
@@ -56,6 +110,33 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
             useNativeDriver: true,
           }),
         ]),
+        // Micro-scale of entire dock bar (1.0 -> 1.025 -> 1.0)
+        Animated.sequence([
+          Animated.timing(dockScale, {
+            toValue: 1.025,
+            duration: 75,
+            useNativeDriver: true,
+          }),
+          Animated.spring(dockScale, {
+            toValue: 1,
+            friction: 6,
+            tension: 85,
+            useNativeDriver: true,
+          }),
+        ]),
+        // Subtle shine beam sweeping across the bar
+        Animated.sequence([
+          Animated.timing(shineAnim, {
+            toValue: 1,
+            duration: 450,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shineAnim, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
       ]).start();
     }
   }, [viewMode]);
@@ -66,7 +147,7 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
     outputRange: [0, STEP_DISTANCE, STEP_DISTANCE * 2],
   });
 
-  // Natural fluid momentum: slight pill elongation during transit without rubber distortion
+  // Natural fluid momentum: slight pill elongation during transit
   const stretchX = slideAnim.interpolate({
     inputRange: [0, 0.5, 1, 1.5, 2],
     outputRange: [1, 1.06, 1, 1.06, 1],
@@ -75,6 +156,17 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
   const stretchY = slideAnim.interpolate({
     inputRange: [0, 0.5, 1, 1.5, 2],
     outputRange: [1, 0.96, 1, 0.96, 1],
+  });
+
+  // Shine sweep coordinates
+  const shineTranslateX = shineAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-60, 240],
+  });
+
+  const shineOpacity = shineAnim.interpolate({
+    inputRange: [0, 0.2, 0.6, 1],
+    outputRange: [0, 0.55, 0.35, 0],
   });
 
   const handleSelect = (mode: ViewMode) => {
@@ -89,12 +181,13 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
 
   return (
     <View style={styles.outerContainer} pointerEvents="box-none">
-      <View
+      <Animated.View
         style={[
           styles.dockBar,
           {
             backgroundColor: theme.surface,
             borderColor: theme.border,
+            transform: [{ scale: dockScale }],
           },
         ]}
       >
@@ -104,7 +197,7 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
             styles.slidingPill,
             {
               backgroundColor: theme.card,
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
               shadowColor: isDark ? theme.primary : '#000',
               transform: [
                 { translateX },
@@ -116,9 +209,25 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
           ]}
         />
 
+        {/* Subtle Shimmer / Shine Beam across the bar */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.shineBeam,
+            {
+              opacity: shineOpacity,
+              transform: [
+                { translateX: shineTranslateX },
+                { skewX: '-22deg' },
+              ],
+            },
+          ]}
+        />
+
         {/* Action Buttons (Fixed LTR layout ensures stable horizontal coordinates) */}
         {MODES.map((m) => {
           const isSelected = viewMode === m.id;
+          const iconColor = isSelected ? theme.text : theme.textDim;
           return (
             <TouchableOpacity
               key={m.id}
@@ -127,20 +236,75 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
               style={styles.dockBtn}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
-              <Ionicons
-                name={m.icon as any}
-                size={m.size}
-                color={isSelected ? theme.text : theme.textDim}
-              />
+              {m.renderIcon(iconColor)}
             </TouchableOpacity>
           );
         })}
-      </View>
+      </Animated.View>
     </View>
   );
 };
 
 export const FloatingDock = memo(FloatingDockComponent);
+
+const iconStyles = StyleSheet.create({
+  miniGridWrap: {
+    width: 17,
+    height: 15,
+    justifyContent: 'space-between',
+  },
+  miniGridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  miniGridBar: {
+    width: 7,
+    height: 2,
+    borderRadius: 1,
+  },
+  checklistWrap: {
+    width: 17,
+    height: 15,
+    justifyContent: 'space-between',
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  checkMark: {
+    marginTop: -1,
+  },
+  checklistLine: {
+    height: 1.8,
+    flex: 1,
+    borderRadius: 1,
+  },
+  cardFrame: {
+    width: 19,
+    height: 16,
+    borderWidth: 1.3,
+    borderRadius: 3.5,
+    padding: 1.5,
+    justifyContent: 'space-between',
+  },
+  cardTopBar: {
+    height: 2,
+    borderRadius: 1,
+    width: '100%',
+  },
+  dotRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 0.5,
+  },
+  dot: {
+    width: 2.2,
+    height: 2.2,
+    borderRadius: 1.1,
+  },
+});
 
 const styles = StyleSheet.create({
   outerContainer: {
@@ -168,6 +332,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.38,
     shadowRadius: 18,
     elevation: 12,
+    overflow: 'hidden',
   },
   slidingPill: {
     position: 'absolute',
@@ -182,6 +347,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 5,
     elevation: 4,
+  },
+  shineBeam: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.32)',
+    borderRadius: 16,
+    zIndex: 10,
   },
   dockBtn: {
     width: BUTTON_WIDTH,

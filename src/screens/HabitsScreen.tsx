@@ -14,14 +14,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitCategory, HabitLogs, ViewMode, DayOfWeek } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
-import { HabitKitTile } from '../components/HabitKitTile';
-import { ChecklistHabitCard } from '../components/ChecklistHabitCard';
-import { CompactWeeklyCard } from '../components/CompactWeeklyCard';
+import { MiniSquareTile } from '../components/MiniSquareTile';
+import { WeeklyTableHabitRow, WeeklyTableHeader } from '../components/WeeklyTableHabitRow';
+import { FullCalendarCard } from '../components/FullCalendarCard';
 import { HabitKitHeader } from '../components/HabitKitHeader';
 import { SlipReflectionModal } from '../components/SlipReflectionModal';
 import { ToolsHubModal } from '../components/ToolsHubModal';
 import { calculateHabitStats } from '../utils/streakUtils';
-import { getTodayString, parseISODate } from '../utils/dateUtils';
+import { getTodayString, parseISODate, getLastNDays } from '../utils/dateUtils';
 import { isHabitScheduledForDay } from '../utils/habitScheduleUtils';
 import { soundService } from '../services/soundService';
 import { hapticService } from '../services/hapticService';
@@ -202,23 +202,23 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     let targetIndex = currentIndex;
 
     if (viewMode === 'heatmap') {
-      // 2-Column Grid
-      const THRESHOLD_Y = 90;
-      const THRESHOLD_X = 65;
+      // 3-Column Grid
+      const THRESHOLD_Y = 85;
+      const THRESHOLD_X = 50;
 
-      if (deltaY > THRESHOLD_Y && currentIndex + 2 < localHabits.length) {
-        targetIndex = currentIndex + 2;
+      if (deltaY > THRESHOLD_Y && currentIndex + 3 < localHabits.length) {
+        targetIndex = currentIndex + 3;
         touchStartPos.current.y += THRESHOLD_Y;
-      } else if (deltaY < -THRESHOLD_Y && currentIndex - 2 >= 0) {
-        targetIndex = currentIndex - 2;
+      } else if (deltaY < -THRESHOLD_Y && currentIndex - 3 >= 0) {
+        targetIndex = currentIndex - 3;
         touchStartPos.current.y -= THRESHOLD_Y;
       } else if (rtl ? deltaX < -THRESHOLD_X : deltaX > THRESHOLD_X) {
-        if (currentIndex % 2 === 0 && currentIndex + 1 < localHabits.length) {
+        if (currentIndex + 1 < localHabits.length) {
           targetIndex = currentIndex + 1;
           touchStartPos.current.x += (rtl ? -THRESHOLD_X : THRESHOLD_X);
         }
       } else if (rtl ? deltaX > THRESHOLD_X : deltaX < -THRESHOLD_X) {
-        if (currentIndex % 2 === 1 && currentIndex - 1 >= 0) {
+        if (currentIndex - 1 >= 0) {
           targetIndex = currentIndex - 1;
           touchStartPos.current.x += (rtl ? THRESHOLD_X : -THRESHOLD_X);
         }
@@ -285,6 +285,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   };
 
   const todayStr = getTodayString();
+  const last7Days = getLastNDays(7);
   const activeHabits = localHabits.length > 0 ? localHabits : habits.filter((h) => !h.archived);
 
   const handleToggleTodayWithEffects = React.useCallback((habitId: string) => {
@@ -631,6 +632,9 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
               },
             ]}
           >
+            {viewMode === 'checklist' && (
+              <WeeklyTableHeader theme={theme} days={last7Days} language={language} />
+            )}
             {displayHabits.map((habit) => {
               const isBeingDragged = draggingHabitId === habit.id;
 
@@ -659,30 +663,28 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
                   onTouchCancel={handleTouchEnd}
                 >
                   {viewMode === 'checklist' ? (
-                    <ChecklistHabitCard
+                    <WeeklyTableHabitRow
+                      habit={habit}
+                      logs={logs}
+                      theme={theme}
+                      days={last7Days}
+                      onToggleDate={handleTogglePastDateWithEffects}
+                      onPressHabit={(h) => {
+                        if (isDraggingRef.current || justFinishedDrag.current) return;
+                        hapticService.light();
+                        onPressHabit(h);
+                      }}
+                    />
+                  ) : viewMode === 'compact' ? (
+                    <FullCalendarCard
                       habit={habit}
                       logs={logs}
                       theme={theme}
                       style={{ width: '100%', marginBottom: 0 }}
                       onToggleToday={handleToggleTodayWithEffects}
+                      onTogglePastDate={handleTogglePastDateWithEffects}
                       onAdjustNumeric={handleAdjustNumericWithEffects}
                       onStartTimer={onStartTimer}
-                      onPressCard={(h) => {
-                        if (isDraggingRef.current || justFinishedDrag.current) return;
-                        hapticService.light();
-                        onPressHabit(h);
-                      }}
-                      onDeleteHabit={onDeleteHabit}
-                      onLogCraving={onLogCraving}
-                      onOpenSlipModal={setSlipModalHabit}
-                    />
-                  ) : viewMode === 'compact' ? (
-                    <CompactWeeklyCard
-                      habit={habit}
-                      logs={logs}
-                      theme={theme}
-                      style={{ width: '100%', marginBottom: 0 }}
-                      onToggleDate={handleTogglePastDateWithEffects}
                       onPressCard={(h) => {
                         if (isDraggingRef.current || justFinishedDrag.current) return;
                         hapticService.light();
@@ -691,7 +693,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
                       onDeleteHabit={onDeleteHabit}
                     />
                   ) : (
-                    <HabitKitTile
+                    <MiniSquareTile
                       habit={habit}
                       logs={logs}
                       theme={theme}
@@ -705,8 +707,6 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
                         onPressHabit(h);
                       }}
                       onDeleteHabit={onDeleteHabit}
-                      onLogCraving={onLogCraving}
-                      onOpenSlipModal={setSlipModalHabit}
                     />
                   )}
                 </Animated.View>
@@ -804,7 +804,8 @@ const styles = StyleSheet.create({
   gridRowWrap: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 7,
+    justifyContent: 'flex-start',
   },
   listColWrap: {
     flexDirection: 'column',
@@ -875,7 +876,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tileWrapper: {
-    width: '48.5%',
+    width: '31.3%',
     marginBottom: 8,
   },
   cardWrapper: {
