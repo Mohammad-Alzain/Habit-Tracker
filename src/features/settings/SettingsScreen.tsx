@@ -31,6 +31,13 @@ export interface SettingsScreenProps {
   onUnarchiveHabit?: (habitId: string) => void;
   onSortHabits?: (order: AppSettings['sortOrder']) => void;
   onOpenReorder?: () => void;
+  onOpenRoadmap?: () => void;
+  onOpenStacks?: () => void;
+  onOpenWidgets?: () => void;
+  onOpenTemplates?: () => void;
+  onOpenMilestones?: () => void;
+  onOpenStudies?: () => void;
+  onOpenWeeklyReview?: () => void;
   onDeleteHabit?: (habitId: string) => void;
   onImportData: (data: AppExportData, mode: 'merge' | 'replace') => { habitsAdded: number; logsUpdated: number };
   onResetDefaults: () => void;
@@ -51,6 +58,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onUnarchiveHabit,
   onSortHabits,
   onOpenReorder,
+  onOpenRoadmap,
+  onOpenStacks,
+  onOpenWidgets,
+  onOpenTemplates,
+  onOpenMilestones,
+  onOpenStudies,
+  onOpenWeeklyReview,
   onDeleteHabit,
   onImportData,
   onResetDefaults,
@@ -287,6 +301,166 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
             </View>
           </TouchableOpacity>
+        </View>
+
+        {/* Section: الأدوات والميزات المتقدمة */}
+        <Text style={[styles.groupHeaderTitle, { color: theme.textDim, textAlign: rtl ? 'right' : 'left' }]}>
+          الأدوات والميزات المتقدمة
+        </Text>
+        <View style={[styles.groupCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          {/* خريطة الالتزامات */}
+          {onOpenRoadmap && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                onOpenRoadmap();
+              }}
+              style={[styles.menuItem, { borderBottomColor: theme.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(124, 131, 253, 0.15)' }]}>
+                <Ionicons name="trail-sign-outline" size={18} color="#7C83FD" />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
+                خريطة الالتزامات والمهام
+              </Text>
+              <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* سلاسل العادات */}
+          {onOpenStacks && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                onOpenStacks();
+              }}
+              style={[styles.menuItem, { borderBottomColor: theme.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(255, 107, 107, 0.15)' }]}>
+                <Ionicons name="layers-outline" size={18} color="#FF6B6B" />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
+                سلاسل العادات (Habit Stacks)
+              </Text>
+              <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* الودجات والتنبيهات */}
+          {onOpenWidgets && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                onOpenWidgets();
+              }}
+              style={[styles.menuItem, { borderBottomColor: theme.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(46, 204, 113, 0.15)' }]}>
+                <Ionicons name="albums-outline" size={18} color="#2ECC71" />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
+                الودجات والتنبيهات الذكية
+              </Text>
+              <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* قوالب العادات */}
+          {onOpenTemplates && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                onOpenTemplates();
+              }}
+              style={[styles.menuItem, { borderBottomColor: theme.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(0, 206, 201, 0.15)' }]}>
+                <Ionicons name="copy-outline" size={18} color="#00CEC9" />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
+                قوالب العادات الجاهزة
+              </Text>
+              <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* شارات الإنجاز والستريك */}
+          {onOpenMilestones && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                onOpenMilestones();
+              }}
+              style={[styles.menuItem, { borderBottomColor: theme.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(241, 196, 15, 0.15)' }]}>
+                <Ionicons name="trophy-outline" size={18} color="#F1C40F" />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
+                شارات الإنجاز والستريك
+              </Text>
+              <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* الدراسات السلوكية والنصائح */}
+          {onOpenStudies && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                onOpenStudies();
+              }}
+              style={[styles.menuItem, { borderBottomColor: theme.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(162, 155, 254, 0.15)' }]}>
+                <Ionicons name="library-outline" size={18} color="#A29BFE" />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
+                الدراسات السلوكية والنصائح
+              </Text>
+              <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* المحصلة الأسبوعية */}
+          {onOpenWeeklyReview && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                onOpenWeeklyReview();
+              }}
+              style={[styles.menuItem, { borderBottomColor: 'transparent', flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(108, 92, 231, 0.15)' }]}>
+                <Ionicons name="calendar-outline" size={18} color="#6C5CE7" />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
+                المحصلة الأسبوعية
+              </Text>
+              <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Section: الدعم والمعلومات */}

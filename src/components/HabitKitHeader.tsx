@@ -24,8 +24,7 @@ interface HabitKitHeaderProps {
   onOpenReorder?: () => void;
   onToggleFilter?: () => void;
   isFilterHidden?: boolean;
-  onToggleSearch?: () => void;
-  isSearchOpen?: boolean;
+  onOpenToolsHub?: () => void;
   onOpenWeeklyReview?: () => void;
 }
 
@@ -46,8 +45,7 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
   onOpenReorder,
   onToggleFilter,
   isFilterHidden = false,
-  onToggleSearch,
-  isSearchOpen = false,
+  onOpenToolsHub,
   onOpenWeeklyReview,
 }) => {
   const rtl = isRTL(language);
@@ -124,28 +122,29 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
             </TouchableOpacity>
           )}
 
-          {/* Search Toggle Button */}
-          {onToggleSearch && (
+          {/* Tools Hub Button */}
+          {onOpenToolsHub && (
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={() => {
-                hapticService.selection();
+                hapticService.light();
                 soundService.playTap();
-                onToggleSearch();
+                onOpenToolsHub();
               }}
               style={[
                 styles.circleBtn,
                 {
-                  backgroundColor: isSearchOpen ? `${theme.primary}25` : theme.surface,
-                  borderColor: isSearchOpen ? `${theme.primary}80` : theme.border,
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
                 },
               ]}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+              accessibilityLabel="مركز الأدوات والميزات"
             >
               <Ionicons
-                name={isSearchOpen ? 'search' : 'search-outline'}
-                size={17}
-                color={isSearchOpen ? theme.primary : theme.text}
+                name="apps-outline"
+                size={18}
+                color={theme.text}
               />
             </TouchableOpacity>
           )}

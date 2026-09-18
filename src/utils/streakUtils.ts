@@ -46,17 +46,18 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
     checkDate.setDate(checkDate.getDate() - 1);
   }
 
+  const habitCreatedStr = habit.createdAt.split('T')[0] || '2000-01-01';
+
   while (true) {
     const dStr = formatDateToISO(checkDate);
+    if (dStr < habitCreatedStr) {
+      break;
+    }
+
     const count = habitLogs[dStr] || 0;
     const isFrozen = frozenSet.has(dStr);
     const dayOfWeek = checkDate.getDay() as DayOfWeek;
-
-    // Skip unscheduled days without breaking streak
-    if (!isHabitScheduledForDay(habit, dayOfWeek)) {
-      checkDate.setDate(checkDate.getDate() - 1);
-      continue;
-    }
+    const isScheduled = isHabitScheduledForDay(habit, dayOfWeek);
 
     if (isDayDone(count)) {
       currentStreak++;
@@ -64,7 +65,11 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
     } else if (isFrozen) {
       // Day is protected by freeze - streak doesn't increase but doesn't break
       checkDate.setDate(checkDate.getDate() - 1);
+    } else if (!isScheduled) {
+      // Rest day / Holiday: DOES NOT BREAK STREAK! Skip backwards to prior day.
+      checkDate.setDate(checkDate.getDate() - 1);
     } else {
+      // Scheduled day was missed without a freeze -> streak ends
       break;
     }
   }
@@ -89,7 +94,29 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
       if (diffDays === 1) {
         runningStreak++;
       } else if (diffDays > 1) {
-        runningStreak = 1;
+        // Check if all intervening days between prevDate and currDate were unscheduled (rest days) or frozen
+        let allInterveningDaysExempt = true;
+        const stepDate = new Date(prevDate);
+        stepDate.setDate(stepDate.getDate() + 1);
+
+        while (formatDateToISO(stepDate) < dateStr) {
+          const stepDayOfWeek = stepDate.getDay() as DayOfWeek;
+          const stepIso = formatDateToISO(stepDate);
+          const isStepScheduled = isHabitScheduledForDay(habit, stepDayOfWeek);
+          const isStepFrozen = frozenSet.has(stepIso);
+
+          if (isStepScheduled && !isStepFrozen) {
+            allInterveningDaysExempt = false;
+            break;
+          }
+          stepDate.setDate(stepDate.getDate() + 1);
+        }
+
+        if (allInterveningDaysExempt) {
+          runningStreak++;
+        } else {
+          runningStreak = 1;
+        }
       }
     }
     prevDate = currDate;
@@ -179,12 +206,30 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
   }
   const habitStrengthScore = weightSum > 0 ? Math.round((scoreSum / weightSum) * 100) : 0;
 
-  // Two-Day Rule (Atomic Habits) - Did the user miss yesterday?
-  const yesterdayDate = new Date(todayDate);
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterdayStr = formatDateToISO(yesterdayDate);
-  const yesterdayCompleted = isDayDone(habitLogs[yesterdayStr] || 0);
-  const missedYesterday = !yesterdayCompleted && !todayCompleted;
+  // Two-Day Rule (Atomic Habits) - Did the user miss their last scheduled day?
+  // Rest days (days off / unscheduled days) must NOT trigger a false alert!
+  let missedYesterday = false;
+  if (!todayCompleted) {
+    const scanDate = new Date(todayDate);
+    // Look back up to 14 days to find the most recent scheduled day before today
+    for (let step = 1; step <= 14; step++) {
+      scanDate.setDate(scanDate.getDate() - 1);
+      const dStr = formatDateToISO(scanDate);
+      if (dStr < habitCreatedStr) {
+        break; // Don't flag days before the habit existed
+      }
+      const dOfWeek = scanDate.getDay() as DayOfWeek;
+      if (isHabitScheduledForDay(habit, dOfWeek)) {
+        const isPastDone = isDayDone(habitLogs[dStr] || 0);
+        const isPastFrozen = frozenSet.has(dStr);
+        // If the user missed this scheduled day, trigger Two-Day Rule reminder
+        if (!isPastDone && !isPastFrozen) {
+          missedYesterday = true;
+        }
+        break; // Evaluated the most recent scheduled day, stop loop
+      }
+    }
+  }
 
   // Quit habit specific metrics
   let totalCravingsResisted = 0;

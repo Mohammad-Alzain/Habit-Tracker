@@ -265,6 +265,7 @@ export default function App() {
               onOpenTemplates={() => setTemplatesModalVisible(true)}
               onOpenMilestones={() => setMilestonesModalVisible(true)}
               onOpenStacks={() => setStackModalVisible(true)}
+              onOpenStudies={() => setStudiesModalVisible(true)}
               onOpenReorder={() => setReorderModalVisible(true)}
               onReorderHabits={(newHabits) => habitStore.reorderHabits(newHabits)}
               onLogCraving={handleLogCraving}
@@ -360,7 +361,38 @@ export default function App() {
             onArchiveHabit={(id) => habitStore.archiveHabit(id)}
             onUnarchiveHabit={(id) => habitStore.unarchiveHabit(id)}
             onSortHabits={(order) => habitStore.sortHabits(order)}
-            onOpenReorder={() => setReorderModalVisible(true)}
+            onOpenReorder={() => {
+              setSettingsModalVisible(false);
+              setReorderModalVisible(true);
+            }}
+            onOpenRoadmap={() => {
+              setSettingsModalVisible(false);
+              setRoadmapModalVisible(true);
+            }}
+            onOpenStacks={() => {
+              setSettingsModalVisible(false);
+              setStackModalVisible(true);
+            }}
+            onOpenWidgets={() => {
+              setSettingsModalVisible(false);
+              setWidgetsModalVisible(true);
+            }}
+            onOpenTemplates={() => {
+              setSettingsModalVisible(false);
+              setTemplatesModalVisible(true);
+            }}
+            onOpenMilestones={() => {
+              setSettingsModalVisible(false);
+              setMilestonesModalVisible(true);
+            }}
+            onOpenStudies={() => {
+              setSettingsModalVisible(false);
+              setStudiesModalVisible(true);
+            }}
+            onOpenWeeklyReview={() => {
+              setSettingsModalVisible(false);
+              setWeeklyReviewVisible(true);
+            }}
             onDeleteHabit={handleDeleteHabit}
             onImportData={(data, mode) => habitStore.importData(data, mode)}
             onResetDefaults={() => habitStore.resetToDefaults()}

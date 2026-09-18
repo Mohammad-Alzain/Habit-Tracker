@@ -1,7 +1,11 @@
 import { Platform } from 'react-native';
+import { Audio } from 'expo-av';
 import { habitStore } from '../store/habitStore';
 
 class SoundService {
+  private completeSound: Audio.Sound | null = null;
+  private tapSound: Audio.Sound | null = null;
+  private isInitialized = false;
   private audioCtx: any = null;
 
   private isEnabled(): boolean {
@@ -14,44 +18,86 @@ class SoundService {
   }
 
   async initNative(): Promise<void> {
-    // Safe initialization with zero external native dependencies
-    return;
-  }
-
-  private getAudioContext(): any {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try {
-        const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtxClass) {
-          if (!this.audioCtx) {
-            this.audioCtx = new AudioCtxClass();
-          }
-          if (this.audioCtx.state === 'suspended') {
-            this.audioCtx.resume();
-          }
-          return this.audioCtx;
-        }
-      } catch (e) {
-        // Safe fallback
-      }
+    if (this.isInitialized) return;
+    if (Platform.OS === 'web') {
+      this.isInitialized = true;
+      return;
     }
-    return null;
+
+    try {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        allowsRecordingIOS: false,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      // Pre-load sounds for instantaneous native playback
+      const completeAsset = require('../../assets/sounds/complete.wav');
+      const tapAsset = require('../../assets/sounds/tap.wav');
+
+      const { sound: s1 } = await Audio.Sound.createAsync(
+        completeAsset,
+        { volume: 0.9, shouldPlay: false }
+      );
+      this.completeSound = s1;
+
+      const { sound: s2 } = await Audio.Sound.createAsync(
+        tapAsset,
+        { volume: 0.55, shouldPlay: false }
+      );
+      this.tapSound = s2;
+
+      this.isInitialized = true;
+    } catch (e) {
+      // Safe fallback if native audio cannot load
+      console.warn('SoundService initNative fallback:', e);
+    }
   }
 
   /**
-   * Plays a pleasant celebration chime.
-   * Runs via Web Audio API on web and safely degrades on native without crashes.
+   * Plays a pleasant celebration chime on habit completion.
+   * Runs natively with zero latency via expo-av on Android/iOS, and falls back to Web Audio on Web.
    */
   async playComplete() {
     if (!this.isEnabled()) return;
 
+    if (Platform.OS !== 'web') {
+      try {
+        if (!this.completeSound) {
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../assets/sounds/complete.wav'),
+            { volume: 0.9, shouldPlay: true }
+          );
+          this.completeSound = sound;
+        } else {
+          await this.completeSound.setPositionAsync(0);
+          await this.completeSound.playAsync();
+        }
+        return;
+      } catch (e) {
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../assets/sounds/complete.wav'),
+            { volume: 0.9, shouldPlay: true }
+          );
+          this.completeSound = sound;
+          return;
+        } catch {
+          // safe degradation
+        }
+      }
+    }
+
+    // Web Audio API fallback
     try {
       const ctx = this.getAudioContext();
       if (ctx) {
         const notes = [
-          { freq: 523.25, time: 0, duration: 0.28 }, // C5
-          { freq: 659.25, time: 0.08, duration: 0.32 }, // E5
-          { freq: 783.99, time: 0.16, duration: 0.45 }, // G5
+          { freq: 523.25, time: 0, duration: 0.28 },
+          { freq: 659.25, time: 0.08, duration: 0.32 },
+          { freq: 783.99, time: 0.16, duration: 0.45 },
         ];
 
         const now = ctx.currentTime;
@@ -62,7 +108,6 @@ class SoundService {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, now + time);
 
-          // Soft bell attack & exponential release
           gain.gain.setValueAtTime(0.001, now + time);
           gain.gain.exponentialRampToValueAtTime(0.22, now + time + 0.02);
           gain.gain.exponentialRampToValueAtTime(0.0001, now + time + duration);
@@ -74,8 +119,8 @@ class SoundService {
           osc.stop(now + time + duration);
         });
       }
-    } catch (e) {
-      // Safe fallback
+    } catch {
+      // safe fallback
     }
   }
 
@@ -85,6 +130,34 @@ class SoundService {
   async playTap() {
     if (!this.isEnabled()) return;
 
+    if (Platform.OS !== 'web') {
+      try {
+        if (!this.tapSound) {
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../assets/sounds/tap.wav'),
+            { volume: 0.55, shouldPlay: true }
+          );
+          this.tapSound = sound;
+        } else {
+          await this.tapSound.setPositionAsync(0);
+          await this.tapSound.playAsync();
+        }
+        return;
+      } catch (e) {
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../assets/sounds/tap.wav'),
+            { volume: 0.55, shouldPlay: true }
+          );
+          this.tapSound = sound;
+          return;
+        } catch {
+          // safe degradation
+        }
+      }
+    }
+
+    // Web Audio fallback
     try {
       const ctx = this.getAudioContext();
       if (ctx) {
@@ -105,9 +178,29 @@ class SoundService {
         osc.start(now);
         osc.stop(now + 0.05);
       }
-    } catch (e) {
-      // Safe fallback
+    } catch {
+      // safe fallback
     }
+  }
+
+  private getAudioContext(): any {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try {
+        const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtxClass) {
+          if (!this.audioCtx) {
+            this.audioCtx = new AudioCtxClass();
+          }
+          if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+          }
+          return this.audioCtx;
+        }
+      } catch {
+        // Safe fallback
+      }
+    }
+    return null;
   }
 }
 

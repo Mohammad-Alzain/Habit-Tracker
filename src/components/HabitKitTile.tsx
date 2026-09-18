@@ -193,18 +193,18 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
           >
             {isQuit ? (
               isTodaySlip ? (
-                <Ionicons name="alert-circle" size={13} color="#E74C3C" />
+                <Ionicons name="alert-circle" size={11} color="#E74C3C" />
               ) : isTodayCompleted ? (
-                <Ionicons name="shield-checkmark" size={13} color="#2ED573" />
+                <Ionicons name="shield-checkmark" size={11} color="#2ED573" />
               ) : (
-                <Ionicons name="shield-outline" size={13} color={habit.color} />
+                <Ionicons name="shield-outline" size={11} color={habit.color} />
               )
             ) : isTodayCompleted ? (
-              <Ionicons name="checkmark" size={13} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={11} color="#FFFFFF" />
             ) : habit.type === 'timer' ? (
-              <Ionicons name="play" size={11} color={habit.color} style={{ marginLeft: 1 }} />
+              <Ionicons name="play" size={9.5} color={habit.color} style={{ marginLeft: 1 }} />
             ) : habit.type === 'numeric' ? (
-              <Ionicons name="add" size={12} color={habit.color} />
+              <Ionicons name="add" size={11} color={habit.color} />
             ) : null}
           </Animated.View>
         </TouchableOpacity>
@@ -265,98 +265,101 @@ export const HabitKitTile = memo(HabitKitTileComponent, arePropsEqual);
 const styles = StyleSheet.create({
   tile: {
     width: '48%',
-    borderRadius: 18,
-    borderWidth: 1.2,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
+    marginBottom: 8,
   },
   topRow: {
     flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   titleCol: {
     flex: 1,
-    marginLeft: 6,
+    marginLeft: 5,
   },
   title: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
     textAlign: 'right',
+    lineHeight: 16,
   },
   subtitle: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     textAlign: 'right',
   },
   tileSubRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 3,
+    marginTop: 1.5,
     flexWrap: 'wrap',
   },
   typeBadge: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 3.5,
     paddingVertical: 1,
-    borderRadius: 5,
+    borderRadius: 4,
     borderWidth: 0.8,
   },
   typeBadgeText: {
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: '700',
   },
   miniStreakPill: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 3.5,
     paddingVertical: 1,
-    borderRadius: 5,
+    borderRadius: 4,
   },
   miniStreakText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800',
   },
   miniReminderPill: {
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
   },
   miniGoalBadge: {
-    marginTop: 3,
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 5,
+    marginTop: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
     alignSelf: 'flex-end',
   },
   miniGoalText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
   },
   checkCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.2,
+    width: 21,
+    height: 21,
+    borderRadius: 10.5,
+    borderWidth: 1.1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   matrixContainer: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    paddingVertical: 2,
-    marginTop: 4,
+    paddingVertical: 1,
+    marginTop: 3,
   },
   matrixCol: {
     flexDirection: 'column',
-    gap: 3,
+    gap: 2.2,
   },
   matrixDot: {
-    width: 8.5,
-    height: 8.5,
-    borderRadius: 2.5,
+    width: 7.2,
+    height: 7.2,
+    borderRadius: 2,
   },
 });
 

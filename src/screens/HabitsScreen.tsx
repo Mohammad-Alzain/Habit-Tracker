@@ -19,6 +19,7 @@ import { ChecklistHabitCard } from '../components/ChecklistHabitCard';
 import { CompactWeeklyCard } from '../components/CompactWeeklyCard';
 import { HabitKitHeader } from '../components/HabitKitHeader';
 import { SlipReflectionModal } from '../components/SlipReflectionModal';
+import { ToolsHubModal } from '../components/ToolsHubModal';
 import { calculateHabitStats } from '../utils/streakUtils';
 import { getTodayString, parseISODate } from '../utils/dateUtils';
 import { isHabitScheduledForDay } from '../utils/habitScheduleUtils';
@@ -41,8 +42,8 @@ interface HabitsScreenProps {
   language?: AppLanguage;
   onToggleToday: (habitId: string) => void;
   onTogglePastDate: (habitId: string, dateStr: string) => void;
-  onAdjustNumeric?: (habitId: string, delta: number) => void;
-  onStartTimer?: (habit: Habit) => void;
+  onAdjustNumeric: (habitId: string, delta: number) => void;
+  onStartTimer: (habit: Habit) => void;
   onPressHabit: (habit: Habit) => void;
   onDeleteHabit: (habitId: string) => void;
   onAddNew: () => void;
@@ -53,8 +54,9 @@ interface HabitsScreenProps {
   onOpenTemplates?: () => void;
   onOpenMilestones?: () => void;
   onOpenStacks?: () => void;
+  onOpenStudies?: () => void;
   onOpenReorder?: () => void;
-  onReorderHabits?: (reorderedHabits: Habit[]) => void;
+  onReorderHabits?: (newHabits: Habit[]) => void;
   onLogCraving?: (habitId: string) => void;
   onLogSlip?: (habitId: string, dateStr: string, reason: string) => void;
   onOpenWeeklyReview?: () => void;
@@ -80,6 +82,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   onOpenTemplates,
   onOpenMilestones,
   onOpenStacks,
+  onOpenStudies,
   onOpenReorder,
   onReorderHabits,
   onLogCraving,
@@ -94,8 +97,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   const [currentQuote, setCurrentQuote] = useState<MotivationalQuote>(() => getDailyQuote());
   const [showQuoteBanner, setShowQuoteBanner] = useState(true);
   const [copiedQuote, setCopiedQuote] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [toolsHubVisible, setToolsHubVisible] = useState(false);
   const rtl = isRTL(language);
 
   const handleShuffleQuote = () => {
@@ -122,23 +124,17 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     }).start();
   }, [showFilters]);
 
-  // Fast, buttery 60fps view mode cross-fade transition
+  // Fluid, noticeable 60fps view mode cross-fade and glide transition
   const viewModeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    viewModeAnim.setValue(0.7);
-    Animated.timing(viewModeAnim, {
+    viewModeAnim.setValue(0);
+    Animated.spring(viewModeAnim, {
       toValue: 1,
-      duration: 150,
+      friction: 8,
+      tension: 65,
       useNativeDriver: true,
     }).start();
-
-    LayoutAnimation.configureNext({
-      duration: 180,
-      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-    });
   }, [viewMode]);
 
   // Direct DnD in-place reordering state
@@ -344,17 +340,6 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     return selectedCategory === 'all' || h.category === selectedCategory;
   });
 
-  // Real-time Search Filter
-  if (searchQuery.trim()) {
-    const q = searchQuery.trim().toLowerCase();
-    displayHabits = displayHabits.filter(
-      (h) =>
-        h.name.toLowerCase().includes(q) ||
-        (h.description && h.description.toLowerCase().includes(q)) ||
-        h.category.toLowerCase().includes(q)
-    );
-  }
-
   const todayDayOfWeek = parseISODate(todayStr).getDay() as DayOfWeek;
 
   if (quickFilter === 'pending') {
@@ -405,54 +390,9 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         onOpenReorder={onOpenReorder}
         onToggleFilter={handleToggleFilterVisibility}
         isFilterHidden={!showFilters}
-        onToggleSearch={() => {
-          setIsSearchOpen((prev) => !prev);
-          if (isSearchOpen) setSearchQuery('');
-        }}
-        isSearchOpen={isSearchOpen}
+        onOpenToolsHub={() => setToolsHubVisible(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
       />
-
-      {/* Search Input Bar (Visible when isSearchOpen) */}
-      {isSearchOpen && (
-        <View
-          style={[
-            styles.searchBarWrap,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.cardBorder || theme.border,
-              flexDirection: rtl ? 'row-reverse' : 'row',
-            },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={18}
-            color={theme.primary}
-            style={{ marginHorizontal: 8 }}
-          />
-          <TextInput
-            style={[
-              styles.searchInput,
-              { color: theme.text, textAlign: rtl ? 'right' : 'left' },
-            ]}
-            placeholder={t('searchHabitsPlaceholder', language)}
-            placeholderTextColor={theme.textDim}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoFocus={true}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              style={{ padding: 6 }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="close-circle" size={18} color={theme.textDim} />
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
 
       {/* Quick Filters Bar (Collapsible with smooth animation) */}
       <Animated.View
@@ -625,56 +565,6 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
           </View>
         )}
 
-        {/* Smart Daily Focus Summary Card */}
-        {totalActiveCount > 0 && (
-          <View
-            style={[
-              styles.dailySummaryCard,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.cardBorder,
-              },
-            ]}
-          >
-            <View style={styles.dailySummaryRow}>
-              <View style={styles.dailySummaryStats}>
-                <View style={styles.dailyBadgeRow}>
-                  <View style={[styles.dailyPercentBadge, { backgroundColor: todayCompletedCount === totalActiveCount ? 'rgba(46, 204, 113, 0.2)' : 'rgba(124, 131, 253, 0.18)' }]}>
-                    <Text style={[styles.dailyPercentText, { color: todayCompletedCount === totalActiveCount ? '#2ECC71' : '#7C83FD' }]}>
-                      {todayPercent}%
-                    </Text>
-                  </View>
-                  <Text style={[styles.dailySummaryTitle, { color: theme.text }]}>
-                    {todayCompletedCount} من {totalActiveCount} عادات منجزة اليوم
-                  </Text>
-                </View>
-
-                {todayFocusMinutes > 0 && (
-                  <View style={[styles.focusMinutesPill, { backgroundColor: 'rgba(0, 206, 201, 0.15)', borderColor: 'rgba(0, 206, 201, 0.3)' }]}>
-                    <Ionicons name="timer-outline" size={12} color="#00CEC9" />
-                    <Text style={styles.focusMinutesText}>
-                      {todayFocusMinutes} دقيقة تركيز
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Micro progress line */}
-            <View style={[styles.summaryTrack, { backgroundColor: theme.surface }]}>
-              <View
-                style={[
-                  styles.summaryFill,
-                  {
-                    width: `${todayPercent}%`,
-                    backgroundColor: todayCompletedCount === totalActiveCount ? '#2ECC71' : '#7C83FD',
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        )}
-
         {/* Two-Day Rule Alert Banner (Atomic Habits) */}
         {showTwoDayBanner && atRiskHabits.length > 0 && (
           <View style={[styles.atRiskBanner, { backgroundColor: 'rgba(231, 76, 60, 0.12)', borderColor: 'rgba(231, 76, 60, 0.35)' }]}>
@@ -701,20 +591,16 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconCircle, { backgroundColor: theme.surface }]}>
               <Ionicons
-                name={searchQuery.trim() ? 'search-outline' : 'sparkles-outline'}
+                name="sparkles-outline"
                 size={40}
                 color="#7C83FD"
               />
             </View>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>
-              {searchQuery.trim()
-                ? (language === 'ar' ? `لا توجد نتائج لـ "${searchQuery}"` : `No results for "${searchQuery}"`)
-                : (language === 'ar' ? 'لا توجد عادات مطابقة' : 'No habits found')}
+              {language === 'ar' ? 'لا توجد عادات مطابقة' : 'No habits found'}
             </Text>
             <Text style={[styles.emptySub, { color: theme.textMuted }]}>
-              {searchQuery.trim()
-                ? (language === 'ar' ? 'تأكد من كتابة الاسم بشكل صحيح أو جرب كلمة أخرى' : 'Check your spelling or try another keyword')
-                : quickFilter !== 'all'
+              {quickFilter !== 'all'
                 ? (language === 'ar' ? 'جرب اختيار فلتر "الكل" لعرض كافة العادات' : 'Try selecting "All" filter to view all habits')
                 : (language === 'ar' ? 'اضغط زر + الأرجواني في الأعلى لإنشاء عادة جديدة' : 'Tap the + button above to create a new habit')}
             </Text>
@@ -723,7 +609,26 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
           <Animated.View
             style={[
               viewMode === 'heatmap' ? styles.gridRowWrap : styles.listColWrap,
-              { opacity: viewModeAnim },
+              {
+                opacity: viewModeAnim.interpolate({
+                  inputRange: [0, 0.35, 1],
+                  outputRange: [0, 0.7, 1],
+                }),
+                transform: [
+                  {
+                    translateY: viewModeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [12, 0],
+                    }),
+                  },
+                  {
+                    scale: viewModeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.97, 1],
+                    }),
+                  },
+                ],
+              },
             ]}
           >
             {displayHabits.map((habit) => {
@@ -824,6 +729,21 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
           onLogSlip?.(habitId, dateStr, reason);
           setSlipModalHabit(null);
         }}
+      />
+
+      {/* Tools & Advanced Features Hub Modal */}
+      <ToolsHubModal
+        visible={toolsHubVisible}
+        onClose={() => setToolsHubVisible(false)}
+        theme={theme}
+        onOpenRoadmap={onOpenRoadmap}
+        onOpenStacks={onOpenStacks}
+        onOpenWidgets={onOpenWidgets}
+        onOpenTemplates={onOpenTemplates}
+        onOpenMilestones={onOpenMilestones}
+        onOpenStudies={onOpenStudies}
+        onOpenReorder={onOpenReorder}
+        onOpenWeeklyReview={onOpenWeeklyReview}
       />
     </View>
   );
@@ -954,72 +874,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
   },
-  dailySummaryCard: {
-    borderRadius: 18,
-    borderWidth: 1.2,
-    padding: 12,
-    marginBottom: 12,
-  },
-  dailySummaryRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  dailySummaryStats: {
-    flex: 1,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dailyBadgeRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dailyPercentBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  dailyPercentText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  dailySummaryTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  focusMinutesPill: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  focusMinutesText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#00CEC9',
-  },
-  summaryTrack: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  summaryFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
   tileWrapper: {
-    width: '48%',
-    marginBottom: 12,
+    width: '48.5%',
+    marginBottom: 8,
   },
   cardWrapper: {
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   floatingDragBanner: {
     alignItems: 'center',
@@ -1050,20 +911,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10.5,
     fontWeight: '800',
-  },
-  searchBarWrap: {
-    marginHorizontal: 16,
-    marginBottom: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    height: 42,
-    alignItems: 'center',
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13.5,
-    paddingVertical: 4,
-    height: '100%',
   },
 });

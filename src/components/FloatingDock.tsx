@@ -35,24 +35,24 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
     const targetIdx = MODES.findIndex((m) => m.id === viewMode);
     if (targetIdx >= 0) {
       Animated.parallel([
-        // Smooth gliding spring with physics
+        // Premium fluid gliding spring
         Animated.spring(slideAnim, {
           toValue: targetIdx,
-          friction: 7,
-          tension: 68,
+          friction: 8.5,
+          tension: 78,
           useNativeDriver: true,
         }),
-        // Subtle press-and-settle pulse
+        // Subtle organic settle
         Animated.sequence([
           Animated.timing(bounceScale, {
-            toValue: 0.94,
-            duration: 90,
+            toValue: 0.96,
+            duration: 70,
             useNativeDriver: true,
           }),
           Animated.spring(bounceScale, {
             toValue: 1,
-            friction: 4,
-            tension: 85,
+            friction: 5,
+            tension: 90,
             useNativeDriver: true,
           }),
         ]),
@@ -66,20 +66,20 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
     outputRange: [0, STEP_DISTANCE, STEP_DISTANCE * 2],
   });
 
-  // "Walking/Gliding" stretch effect: pill organically elongates during transit
+  // Natural fluid momentum: slight pill elongation during transit without rubber distortion
   const stretchX = slideAnim.interpolate({
     inputRange: [0, 0.5, 1, 1.5, 2],
-    outputRange: [1, 1.18, 1, 1.18, 1],
+    outputRange: [1, 1.06, 1, 1.06, 1],
   });
 
   const stretchY = slideAnim.interpolate({
     inputRange: [0, 0.5, 1, 1.5, 2],
-    outputRange: [1, 0.90, 1, 0.90, 1],
+    outputRange: [1, 0.96, 1, 0.96, 1],
   });
 
   const handleSelect = (mode: ViewMode) => {
     if (mode !== viewMode) {
-      hapticService.medium();
+      hapticService.selection();
       soundService.playTap();
       onChangeViewMode(mode);
     }
