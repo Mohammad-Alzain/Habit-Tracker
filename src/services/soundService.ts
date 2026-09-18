@@ -1,11 +1,8 @@
 import { Platform } from 'react-native';
-import { Audio } from 'expo-av';
 import { habitStore } from '../store/habitStore';
+import { hapticService } from './hapticService';
 
 class SoundService {
-  private completeSound: Audio.Sound | null = null;
-  private tapSound: Audio.Sound | null = null;
-  private isInitialized = false;
   private audioCtx: any = null;
 
   private isEnabled(): boolean {
@@ -18,75 +15,43 @@ class SoundService {
   }
 
   async initNative(): Promise<void> {
-    if (this.isInitialized) return;
-    if (Platform.OS === 'web') {
-      this.isInitialized = true;
-      return;
+    // Completely crash-proof with zero missing native module dependencies
+    return;
+  }
+
+  private getAudioContext(): any {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try {
+        const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtxClass) {
+          if (!this.audioCtx) {
+            this.audioCtx = new AudioCtxClass();
+          }
+          if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+          }
+          return this.audioCtx;
+        }
+      } catch {
+        // Safe fallback
+      }
     }
-
-    try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-
-      // Pre-load sounds for instantaneous native playback
-      const completeAsset = require('../../assets/sounds/complete.wav');
-      const tapAsset = require('../../assets/sounds/tap.wav');
-
-      const { sound: s1 } = await Audio.Sound.createAsync(
-        completeAsset,
-        { volume: 0.9, shouldPlay: false }
-      );
-      this.completeSound = s1;
-
-      const { sound: s2 } = await Audio.Sound.createAsync(
-        tapAsset,
-        { volume: 0.55, shouldPlay: false }
-      );
-      this.tapSound = s2;
-
-      this.isInitialized = true;
-    } catch (e) {
-      // Safe fallback if native audio cannot load
-      console.warn('SoundService initNative fallback:', e);
-    }
+    return null;
   }
 
   /**
-   * Plays a pleasant celebration chime on habit completion.
-   * Runs natively with zero latency via expo-av on Android/iOS, and falls back to Web Audio on Web.
+   * Plays a pleasant celebration feedback on habit completion.
+   * On Web: Synthesizes a 3-note chime via Web Audio API.
+   * On Native: Triggers celebratory success feedback safely with zero missing native dependencies.
    */
   async playComplete() {
     if (!this.isEnabled()) return;
 
     if (Platform.OS !== 'web') {
       try {
-        if (!this.completeSound) {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../assets/sounds/complete.wav'),
-            { volume: 0.9, shouldPlay: true }
-          );
-          this.completeSound = sound;
-        } else {
-          await this.completeSound.setPositionAsync(0);
-          await this.completeSound.playAsync();
-        }
-        return;
-      } catch (e) {
-        try {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../assets/sounds/complete.wav'),
-            { volume: 0.9, shouldPlay: true }
-          );
-          this.completeSound = sound;
-          return;
-        } catch {
-          // safe degradation
-        }
+        hapticService.success();
+      } catch {
+        // safe fallback
       }
     }
 
@@ -125,35 +90,16 @@ class SoundService {
   }
 
   /**
-   * Plays a subtle pop / click sound for button taps.
+   * Plays subtle feedback for button taps.
    */
   async playTap() {
     if (!this.isEnabled()) return;
 
     if (Platform.OS !== 'web') {
       try {
-        if (!this.tapSound) {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../assets/sounds/tap.wav'),
-            { volume: 0.55, shouldPlay: true }
-          );
-          this.tapSound = sound;
-        } else {
-          await this.tapSound.setPositionAsync(0);
-          await this.tapSound.playAsync();
-        }
-        return;
-      } catch (e) {
-        try {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../assets/sounds/tap.wav'),
-            { volume: 0.55, shouldPlay: true }
-          );
-          this.tapSound = sound;
-          return;
-        } catch {
-          // safe degradation
-        }
+        hapticService.selection();
+      } catch {
+        // safe fallback
       }
     }
 
@@ -181,26 +127,6 @@ class SoundService {
     } catch {
       // safe fallback
     }
-  }
-
-  private getAudioContext(): any {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try {
-        const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtxClass) {
-          if (!this.audioCtx) {
-            this.audioCtx = new AudioCtxClass();
-          }
-          if (this.audioCtx.state === 'suspended') {
-            this.audioCtx.resume();
-          }
-          return this.audioCtx;
-        }
-      } catch {
-        // Safe fallback
-      }
-    }
-    return null;
   }
 }
 
