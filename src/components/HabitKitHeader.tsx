@@ -24,6 +24,9 @@ interface HabitKitHeaderProps {
   onOpenReorder?: () => void;
   onToggleFilter?: () => void;
   isFilterHidden?: boolean;
+  onToggleSearch?: () => void;
+  isSearchOpen?: boolean;
+  onOpenWeeklyReview?: () => void;
 }
 
 export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
@@ -43,6 +46,9 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
   onOpenReorder,
   onToggleFilter,
   isFilterHidden = false,
+  onToggleSearch,
+  isSearchOpen = false,
+  onOpenWeeklyReview,
 }) => {
   const rtl = isRTL(language);
 
@@ -103,6 +109,30 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
               <Ionicons name="map-outline" size={15} color="#FF6565" />
               <Text style={[styles.featurePillText, { color: theme.text, fontWeight: '800' }]}>
                 {language === 'ar' ? 'خريطة الالتزامات' : 'Roadmap'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Weekly Review Button */}
+          {onOpenWeeklyReview && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.light();
+                soundService.playTap();
+                onOpenWeeklyReview();
+              }}
+              style={[
+                styles.featurePillBtn,
+                {
+                  backgroundColor: 'rgba(46, 213, 115, 0.14)',
+                  borderColor: 'rgba(46, 213, 115, 0.4)',
+                },
+              ]}
+            >
+              <Ionicons name="ribbon-outline" size={15} color="#2ED573" />
+              <Text style={[styles.featurePillText, { color: theme.text, fontWeight: '800' }]}>
+                {t('weeklyReviewTitle', language)}
               </Text>
             </TouchableOpacity>
           )}
@@ -201,6 +231,31 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
 
         {/* Actions Controls Group: Filter Toggle & Settings */}
         <View style={[styles.rightGroup, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          {onToggleSearch && (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                hapticService.selection();
+                soundService.playTap();
+                onToggleSearch();
+              }}
+              style={[
+                styles.circleBtn,
+                {
+                  backgroundColor: isSearchOpen ? `${theme.primary}25` : theme.surface,
+                  borderColor: isSearchOpen ? `${theme.primary}80` : theme.border,
+                },
+              ]}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <Ionicons
+                name={isSearchOpen ? 'search' : 'search-outline'}
+                size={18}
+                color={isSearchOpen ? theme.primary : theme.text}
+              />
+            </TouchableOpacity>
+          )}
+
           {onToggleFilter && (
             <TouchableOpacity
               activeOpacity={0.75}

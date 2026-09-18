@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  TextInput,
   Platform,
   LayoutAnimation,
   Animated,
@@ -56,6 +57,7 @@ interface HabitsScreenProps {
   onReorderHabits?: (reorderedHabits: Habit[]) => void;
   onLogCraving?: (habitId: string) => void;
   onLogSlip?: (habitId: string, dateStr: string, reason: string) => void;
+  onOpenWeeklyReview?: () => void;
 }
 
 export const HabitsScreen: React.FC<HabitsScreenProps> = ({
@@ -82,6 +84,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   onReorderHabits,
   onLogCraving,
   onLogSlip,
+  onOpenWeeklyReview,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<'all' | HabitCategory>('all');
   const [quickFilter, setQuickFilter] = useState<'all' | 'pending' | 'completed' | 'streak'>('all');
@@ -91,6 +94,8 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   const [currentQuote, setCurrentQuote] = useState<MotivationalQuote>(() => getDailyQuote());
   const [showQuoteBanner, setShowQuoteBanner] = useState(true);
   const [copiedQuote, setCopiedQuote] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const rtl = isRTL(language);
 
   const handleShuffleQuote = () => {
@@ -320,6 +325,17 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     return selectedCategory === 'all' || h.category === selectedCategory;
   });
 
+  // Real-time Search Filter
+  if (searchQuery.trim()) {
+    const q = searchQuery.trim().toLowerCase();
+    displayHabits = displayHabits.filter(
+      (h) =>
+        h.name.toLowerCase().includes(q) ||
+        (h.description && h.description.toLowerCase().includes(q)) ||
+        h.category.toLowerCase().includes(q)
+    );
+  }
+
   const todayDayOfWeek = parseISODate(todayStr).getDay() as DayOfWeek;
 
   if (quickFilter === 'pending') {
@@ -342,6 +358,15 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     });
   }
 
+  // Float pinned habits to top unless sorting by streak
+  if (quickFilter !== 'streak') {
+    displayHabits = [...displayHabits].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0;
+    });
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Top Header */}
@@ -361,7 +386,54 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         onOpenReorder={onOpenReorder}
         onToggleFilter={handleToggleFilterVisibility}
         isFilterHidden={!showFilters}
+        onToggleSearch={() => {
+          setIsSearchOpen((prev) => !prev);
+          if (isSearchOpen) setSearchQuery('');
+        }}
+        isSearchOpen={isSearchOpen}
+        onOpenWeeklyReview={onOpenWeeklyReview}
       />
+
+      {/* Search Input Bar (Visible when isSearchOpen) */}
+      {isSearchOpen && (
+        <View
+          style={[
+            styles.searchBarWrap,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.cardBorder || theme.border,
+              flexDirection: rtl ? 'row-reverse' : 'row',
+            },
+          ]}
+        >
+          <Ionicons
+            name="search"
+            size={18}
+            color={theme.primary}
+            style={{ marginHorizontal: 8 }}
+          />
+          <TextInput
+            style={[
+              styles.searchInput,
+              { color: theme.text, textAlign: rtl ? 'right' : 'left' },
+            ]}
+            placeholder={t('searchHabitsPlaceholder', language)}
+            placeholderTextColor={theme.textDim}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus={true}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={{ padding: 6 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close-circle" size={18} color={theme.textDim} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {/* Quick Filters Bar (Collapsible with smooth animation) */}
       <Animated.View
@@ -609,13 +681,23 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         {displayHabits.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconCircle, { backgroundColor: theme.surface }]}>
-              <Ionicons name="sparkles-outline" size={40} color="#7C83FD" />
+              <Ionicons
+                name={searchQuery.trim() ? 'search-outline' : 'sparkles-outline'}
+                size={40}
+                color="#7C83FD"
+              />
             </View>
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>لا توجد عادات مطابقة</Text>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
+              {searchQuery.trim()
+                ? (language === 'ar' ? `لا توجد نتائج لـ "${searchQuery}"` : `No results for "${searchQuery}"`)
+                : (language === 'ar' ? 'لا توجد عادات مطابقة' : 'No habits found')}
+            </Text>
             <Text style={[styles.emptySub, { color: theme.textMuted }]}>
-              {quickFilter !== 'all'
-                ? 'جرب اختيار فلتر "الكل" لعرض كافة العادات'
-                : 'اضغط زر + الأرجواني في الأعلى لإنشاء عادة جديدة'}
+              {searchQuery.trim()
+                ? (language === 'ar' ? 'تأكد من كتابة الاسم بشكل صحيح أو جرب كلمة أخرى' : 'Check your spelling or try another keyword')
+                : quickFilter !== 'all'
+                ? (language === 'ar' ? 'جرب اختيار فلتر "الكل" لعرض كافة العادات' : 'Try selecting "All" filter to view all habits')
+                : (language === 'ar' ? 'اضغط زر + الأرجواني في الأعلى لإنشاء عادة جديدة' : 'Tap the + button above to create a new habit')}
             </Text>
           </View>
         ) : (
@@ -944,5 +1026,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10.5,
     fontWeight: '800',
+  },
+  searchBarWrap: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    height: 42,
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13.5,
+    paddingVertical: 4,
+    height: '100%',
   },
 });

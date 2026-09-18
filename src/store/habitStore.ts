@@ -262,6 +262,40 @@ export const habitStore = {
     schedulePersist();
   },
 
+  duplicateHabit(habitId: string): Habit | null {
+    const existing = state.habits.find((h) => h.id === habitId);
+    if (!existing) return null;
+
+    const newId = `habit_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const duplicatedHabit: Habit = {
+      ...existing,
+      id: newId,
+      name: `${existing.name} (نسخة)`,
+      createdAt: new Date().toISOString(),
+      pinned: false,
+      streakFreezeDays: [],
+      notes: {},
+      cravingsResisted: {},
+      subTasks: existing.subTasks
+        ? existing.subTasks.map((st) => ({
+            ...st,
+            id: `subtask_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          }))
+        : undefined,
+    };
+
+    state = {
+      ...state,
+      habits: [duplicatedHabit, ...state.habits],
+    };
+    emitChange();
+    schedulePersist();
+    if (duplicatedHabit.reminderEnabled) {
+      NotificationService.scheduleHabitReminder(duplicatedHabit);
+    }
+    return duplicatedHabit;
+  },
+
   deleteHabit(habitId: string): void {
     const newLogs = { ...state.logs };
     delete newLogs[habitId];

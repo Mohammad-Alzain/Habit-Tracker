@@ -29,6 +29,7 @@ import { HabitStackModal } from './src/components/HabitStackModal';
 import { ShareHabitCardModal } from './src/components/ShareHabitCardModal';
 import { RoadmapModal } from './src/components/RoadmapModal';
 import { ReorderHabitsModal } from './src/components/ReorderHabitsModal';
+import { WeeklyReviewModal } from './src/components/WeeklyReviewModal';
 import { ModalHeader } from './src/components/ModalHeader';
 import { AmbientBackground } from './src/components/common/AmbientBackground';
 import { t, isRTL, AppLanguage } from './src/utils/i18n';
@@ -70,6 +71,7 @@ export default function App() {
   const [habitToShare, setHabitToShare] = useState<Habit | null>(null);
   const [activeTimerHabit, setActiveTimerHabit] = useState<Habit | null>(null);
   const [reorderModalVisible, setReorderModalVisible] = useState(false);
+  const [weeklyReviewVisible, setWeeklyReviewVisible] = useState(false);
 
 
 
@@ -267,6 +269,7 @@ export default function App() {
               onReorderHabits={(newHabits) => habitStore.reorderHabits(newHabits)}
               onLogCraving={handleLogCraving}
               onLogSlip={handleLogSlip}
+              onOpenWeeklyReview={() => setWeeklyReviewVisible(true)}
             />
 
             {/* Floating View Switcher Dock matching Image 5 */}
@@ -313,6 +316,20 @@ export default function App() {
             setShareModalVisible(true);
           }}
           onOpenRoadmap={() => setRoadmapModalVisible(true)}
+          onTogglePin={(habitId) => {
+            habitStore.togglePinHabit(habitId);
+            const updated = habitStore.getSnapshot().habits.find((h) => h.id === habitId);
+            if (updated) {
+              setSelectedHabitForDetail(updated);
+            }
+          }}
+          onDuplicateHabit={(habitId) => {
+            const duplicated = habitStore.duplicateHabit(habitId);
+            if (duplicated) {
+              hapticService.success();
+              soundService.playComplete();
+            }
+          }}
         />
 
         {/* Modal: Interactive Focus Timer */}
@@ -468,6 +485,17 @@ export default function App() {
           theme={theme}
           onClose={() => setReorderModalVisible(false)}
           onSaveOrder={(newHabits) => habitStore.reorderHabits(newHabits)}
+        />
+
+        {/* Modal: Weekly Performance & Reflection Digest */}
+        <WeeklyReviewModal
+          visible={weeklyReviewVisible}
+          habits={habits}
+          logs={logs}
+          theme={theme}
+          language={language}
+          onClose={() => setWeeklyReviewVisible(false)}
+          onSelectHabit={(habit) => setSelectedHabitForDetail(habit)}
         />
       </SafeAreaView>
     </SafeAreaProvider>

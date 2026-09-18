@@ -67,9 +67,9 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
                 borderWidth: 1,
               },
             ]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
-            <Ionicons name="close" size={20} color={theme.textMuted} />
+            <Ionicons name="close" size={22} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -90,6 +90,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
     paddingHorizontal: 16,
+    paddingTop: 6,
   },
   dragHandle: {
     width: 36,
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    height: 44,
+    height: 48,
     position: 'relative',
     justifyContent: 'center',
   },
@@ -144,15 +145,15 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   closeCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dialogHeaderContainer: {
     width: '100%',
-    height: 40,
+    height: 44,
     position: 'relative',
     justifyContent: 'center',
     marginBottom: 16,
@@ -170,15 +171,15 @@ const styles = StyleSheet.create({
   dialogLeftSlot: {
     position: 'absolute',
     left: 0,
-    top: 3,
-    bottom: 3,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
     zIndex: 10,
   },
   closeCircleSmall: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -249,9 +250,9 @@ export const DialogHeader: React.FC<DialogHeaderProps> = ({
               borderWidth: 1,
             },
           ]}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
         >
-          <Ionicons name="close" size={19} color={theme.textMuted} />
+          <Ionicons name="close" size={20} color={theme.text} />
         </TouchableOpacity>
       </View>
     </View>

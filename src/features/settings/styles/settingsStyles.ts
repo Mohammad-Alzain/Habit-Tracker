@@ -4,6 +4,7 @@ import { FULL_SCREEN_SAFE_TOP, DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../..
 export const settingsStyles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: FULL_SCREEN_SAFE_TOP + 8,
   },
   topHeader: {
     alignItems: 'center',

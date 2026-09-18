@@ -31,6 +31,8 @@ export interface HabitDetailModalProps {
   onSaveNote?: (habitId: string, dateStr: string, noteText: string) => void;
   onShareHabit?: (habit: Habit) => void;
   onOpenRoadmap?: () => void;
+  onTogglePin?: (habitId: string) => void;
+  onDuplicateHabit?: (habitId: string) => void;
 }
 
 export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
@@ -49,6 +51,8 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
   onSaveNote,
   onShareHabit,
   onOpenRoadmap,
+  onTogglePin,
+  onDuplicateHabit,
 }) => {
   const rtl = isRTL(language);
 
@@ -224,6 +228,21 @@ export const HabitDetailModal: React.FC<HabitDetailModalProps> = ({
               ? () => {
                   onArchiveHabit(habit.id);
                   onClose();
+                }
+              : undefined
+          }
+          onTogglePin={
+            onTogglePin
+              ? () => {
+                  onTogglePin(habit.id);
+                }
+              : undefined
+          }
+          onDuplicate={
+            onDuplicateHabit
+              ? () => {
+                  onClose();
+                  onDuplicateHabit(habit.id);
                 }
               : undefined
           }
