@@ -391,6 +391,10 @@ export default function App() {
                 setAnalyticsModalVisible(false);
                 setStudiesModalVisible(true);
               }}
+              onOpenWeeklyReview={() => {
+                setAnalyticsModalVisible(false);
+                setWeeklyReviewVisible(true);
+              }}
             />
           </View>
         </Modal>

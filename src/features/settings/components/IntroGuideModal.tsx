@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Platform, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeColors } from '../../../constants/theme';
 import { DialogHeader } from '../../../components/ModalHeader';
@@ -78,6 +78,7 @@ export const IntroGuideModal: React.FC<IntroGuideModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <BlurOverlay theme={theme} style={styles.dataModalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View
           style={[
             styles.dataModalCard,

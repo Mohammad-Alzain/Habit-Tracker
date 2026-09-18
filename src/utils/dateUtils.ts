@@ -129,7 +129,7 @@ export function getArabicMonth(monthIndex: number): string {
   return ARABIC_MONTHS[monthIndex] || '';
 }
 
-// Cached 30-day Tile Matrix (6 cols x 5 rows) - generated once per day
+// Cached 77-day Tile Matrix (11 cols x 7 rows) - matching HabitKit native layout
 let cachedTileMatrixKey = '';
 let cachedTileMatrixColumns: string[][] | null = null;
 
@@ -140,17 +140,19 @@ export function getCachedTileMatrixColumns(): string[][] {
   }
 
   const todayDate = parseISODate(todayKey);
-  const colsCount = 6;
-  const rowsCount = 5;
-  const columns: string[][] = [];
+  const colsCount = 11;
+  const rowsCount = 7;
+  const todayDayOfWeek = (todayDate.getDay() + 6) % 7; // Monday = 0 ... Sunday = 6
+  const startMatrixDate = new Date(todayDate);
+  startMatrixDate.setDate(todayDate.getDate() - todayDayOfWeek - (colsCount - 1) * 7);
 
+  const columns: string[][] = [];
   for (let c = 0; c < colsCount; c++) {
     const col: string[] = [];
     for (let r = 0; r < rowsCount; r++) {
-      const daysAgo = (colsCount - 1 - c) * rowsCount + (rowsCount - 1 - r);
-      const d = new Date(todayDate);
-      d.setDate(todayDate.getDate() - daysAgo);
-      col.push(formatDateToISO(d));
+      const cellDate = new Date(startMatrixDate);
+      cellDate.setDate(startMatrixDate.getDate() + (c * 7 + r));
+      col.push(formatDateToISO(cellDate));
     }
     columns.push(col);
   }

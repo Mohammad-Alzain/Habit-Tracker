@@ -193,35 +193,38 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
           >
             {isQuit ? (
               isTodaySlip ? (
-                <Ionicons name="alert-circle" size={14} color="#E74C3C" />
+                <Ionicons name="alert-circle" size={13} color="#E74C3C" />
               ) : isTodayCompleted ? (
-                <Ionicons name="shield-checkmark" size={14} color="#2ED573" />
+                <Ionicons name="shield-checkmark" size={13} color="#2ED573" />
               ) : (
-                <Ionicons name="shield-outline" size={14} color={habit.color} />
+                <Ionicons name="shield-outline" size={13} color={habit.color} />
               )
             ) : isTodayCompleted ? (
-              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={13} color="#FFFFFF" />
             ) : habit.type === 'timer' ? (
-              <Ionicons name="play" size={12} color={habit.color} style={{ marginLeft: 1 }} />
+              <Ionicons name="play" size={11} color={habit.color} style={{ marginLeft: 1 }} />
             ) : habit.type === 'numeric' ? (
-              <Ionicons name="add" size={13} color={habit.color} />
+              <Ionicons name="add" size={12} color={habit.color} />
             ) : null}
           </Animated.View>
         </TouchableOpacity>
       </View>
 
-      {/* Mini Dot Heatmap Matrix */}
+      {/* Mini Dot Heatmap Matrix matching Image 1 (11 cols x 7 rows) */}
       <View style={styles.matrixContainer}>
         {cachedCols.map((col, cIdx) => (
           <View key={`c-${cIdx}`} style={styles.matrixCol}>
             {col.map((dStr) => {
+              const isFuture = dStr > todayStr;
               const count = habitLogs[dStr] || 0;
               const isSlip = count === -1 || (isQuit && habit.type === 'numeric' && count > targetThreshold);
               const isComp = isQuit
                 ? (habit.type === 'numeric' ? count <= targetThreshold && count > 0 : count >= 1)
                 : count >= targetThreshold;
               const isToday = dStr === todayStr;
-              const bg = isSlip
+              const bg = isFuture
+                ? 'transparent'
+                : isSlip
                 ? 'rgba(231, 76, 60, 0.85)'
                 : isComp
                 ? (isQuit ? '#2ED573' : habit.color)
@@ -234,8 +237,9 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
                     styles.matrixDot,
                     {
                       backgroundColor: bg,
-                      borderColor: isSlip ? '#E74C3C' : isToday ? habit.color : 'transparent',
+                      borderColor: isFuture ? 'transparent' : isSlip ? '#E74C3C' : isToday ? habit.color : 'transparent',
                       borderWidth: isToday && !isComp && !isSlip ? 1 : 0,
+                      opacity: isFuture ? 0 : 1,
                     },
                   ]}
                 />
@@ -261,35 +265,35 @@ export const HabitKitTile = memo(HabitKitTileComponent, arePropsEqual);
 const styles = StyleSheet.create({
   tile: {
     width: '48%',
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1.2,
-    padding: 14,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 10,
   },
   topRow: {
     flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   titleCol: {
     flex: 1,
     marginLeft: 6,
   },
   title: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     textAlign: 'right',
   },
   subtitle: {
-    fontSize: 11,
+    fontSize: 10.5,
     textAlign: 'right',
   },
   tileSubRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 4,
-    marginTop: 3,
+    marginTop: 2,
     flexWrap: 'wrap',
   },
   typeBadge: {
@@ -298,11 +302,11 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 4,
     paddingVertical: 1,
-    borderRadius: 6,
+    borderRadius: 5,
     borderWidth: 0.8,
   },
   typeBadgeText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '700',
   },
   miniStreakPill: {
@@ -310,32 +314,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
     paddingHorizontal: 4,
-    paddingVertical: 1.5,
-    borderRadius: 6,
+    paddingVertical: 1,
+    borderRadius: 5,
   },
   miniStreakText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '800',
   },
   miniReminderPill: {
     paddingHorizontal: 2,
   },
   miniGoalBadge: {
-    marginTop: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    marginTop: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 5,
     alignSelf: 'flex-end',
   },
   miniGoalText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '700',
   },
   checkCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1.5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -343,15 +347,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     paddingVertical: 2,
+    marginTop: 4,
   },
   matrixCol: {
     flexDirection: 'column',
-    gap: 4,
+    gap: 3,
   },
   matrixDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 4,
+    width: 8.5,
+    height: 8.5,
+    borderRadius: 2.5,
   },
 });
 

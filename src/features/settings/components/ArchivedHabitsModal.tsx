@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Alert, Platform, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit } from '../../../types/habit';
 import { ThemeColors } from '../../../constants/theme';
@@ -34,6 +34,7 @@ export const ArchivedHabitsModal: React.FC<ArchivedHabitsModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <BlurOverlay theme={theme} style={styles.dataModalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View
           style={[
             styles.dataModalCard,

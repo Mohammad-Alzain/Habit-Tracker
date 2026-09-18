@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeColors } from '../../../constants/theme';
 import { hapticService } from '../../../services/hapticService';
-import { formatFriendlyDate } from '../../../utils/dateUtils';
+import { formatFriendlyDate, parseISODate } from '../../../utils/dateUtils';
 import { isRTL, AppLanguage } from '../../../utils/i18n';
 
 interface MonthCalendarViewProps {
@@ -38,8 +38,8 @@ interface MonthCalendarViewProps {
   isTimerHabit?: boolean;
 }
 
-const WEEK_DAYS_AR = ['سب', 'أح', 'إث', 'ثل', 'أر', 'خم', 'جم'];
-const WEEK_DAYS_EN = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const WEEK_DAYS_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+const WEEK_DAYS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
   habitId,
@@ -67,6 +67,19 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
   const isSelectedCompleted = monthDays.find((d) => d.dateStr === selectedDateStr)?.isCompleted;
   const weekDays = language === 'en' ? WEEK_DAYS_EN : WEEK_DAYS_AR;
 
+  // Calculate leading previous-month trailing days (Monday start: Mon=0 .. Sun=6)
+  const leadingSlots = (firstDayOfWeek + 6) % 7;
+  const firstDayObj = monthDays[0] ? parseISODate(monthDays[0].dateStr) : new Date();
+  const prevMonthLastDayNum = new Date(firstDayObj.getFullYear(), firstDayObj.getMonth(), 0).getDate();
+  const prevMonthDays = Array.from({ length: leadingSlots }).map(
+    (_, i) => prevMonthLastDayNum - leadingSlots + 1 + i
+  );
+
+  // Calculate trailing next-month leading days to make a complete rectangular grid
+  const totalOccupied = leadingSlots + monthDays.length;
+  const trailingSlots = totalOccupied % 7 === 0 ? 0 : 7 - (totalOccupied % 7);
+  const nextMonthDays = Array.from({ length: trailingSlots }).map((_, i) => i + 1);
+
   const handleDayPress = (d: { dateStr: string; isFuture: boolean }) => {
     onSelectDate(d.dateStr);
 
@@ -90,24 +103,7 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
         },
       ]}
     >
-      {/* Month Navigator Header: < Month Label > */}
-      <View style={styles.monthHeaderRow}>
-        <TouchableOpacity onPress={onPrevMonth} style={styles.arrowBtn}>
-          <Ionicons name="chevron-back" size={18} color={theme.text} />
-        </TouchableOpacity>
-
-        <Text style={[styles.monthLabel, { color: theme.text }]}>{currentMonthLabel}</Text>
-
-        <TouchableOpacity
-          onPress={onNextMonth}
-          disabled={monthOffset <= 0}
-          style={[styles.arrowBtn, { opacity: monthOffset <= 0 ? 0.3 : 1 }]}
-        >
-          <Ionicons name="chevron-forward" size={18} color={theme.text} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Day of Week Headers */}
+      {/* Day of Week Headers matching Image 2 */}
       <View style={styles.weekLabelsRow}>
         {weekDays.map((wd, i) => (
           <Text key={i} style={[styles.weekLabelText, { color: theme.textDim }]}>
@@ -116,14 +112,24 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
         ))}
       </View>
 
-      {/* Calendar Grid */}
+      {/* Calendar Days Grid matching Image 2 */}
       <View style={styles.daysGrid}>
-        {Array.from({ length: (firstDayOfWeek + 1) % 7 }).map((_, idx) => (
-          <View key={`empty-${idx}`} style={styles.cellWrapper} />
+        {/* Trailing days of previous month (dim text, no box) */}
+        {prevMonthDays.map((dayNum, idx) => (
+          <View key={`prev-${idx}`} style={styles.cellWrapper}>
+            <View style={styles.uncompletedDayBox}>
+              <Text style={[styles.dayNumText, { color: theme.textDim, opacity: 0.35 }]}>
+                {dayNum}
+              </Text>
+            </View>
+          </View>
         ))}
 
+        {/* Current Month Days */}
         {monthDays.map((d) => {
           const isSelected = d.dateStr === selectedDateStr;
+          const isComp = d.isCompleted;
+          const isToday = d.isToday;
 
           return (
             <TouchableOpacity
@@ -136,27 +142,18 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
               <View
                 style={[
                   styles.dayBox,
-                  {
-                    backgroundColor: d.isFrozen
-                      ? 'rgba(0, 206, 201, 0.22)'
-                      : d.isSlip
-                      ? 'rgba(231, 76, 60, 0.22)'
-                      : d.isCompleted
-                      ? `${habitColor}22`
-                      : theme.emptyCell,
-                    borderColor: d.isFrozen
-                      ? '#00CEC9'
-                      : d.isSlip
-                      ? '#E74C3C'
-                      : isSelected
-                      ? (d.isCompleted ? habitColor : theme.text)
-                      : d.isToday
-                      ? habitColor
-                      : d.isCompleted
-                      ? `${habitColor}55`
-                      : theme.border,
-                    borderWidth: d.isFrozen || d.isSlip || isSelected ? 2 : d.isToday ? 1.5 : d.isCompleted ? 1.2 : 1,
-                    opacity: d.isFuture ? 0.35 : 1,
+                  d.isFrozen
+                    ? styles.frozenDayBox
+                    : d.isSlip
+                    ? styles.slipDayBox
+                    : isComp
+                    ? [styles.completedDayBox, { backgroundColor: `${habitColor}35` }]
+                    : isToday
+                    ? [styles.todayOutlineBox, { borderColor: habitColor }]
+                    : styles.uncompletedDayBox,
+                  isSelected && !isComp && !isToday && !d.isFrozen && !d.isSlip && {
+                    borderColor: 'rgba(255, 255, 255, 0.35)',
+                    borderWidth: 1,
                   },
                 ]}
               >
@@ -170,23 +167,20 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
                       style={[
                         styles.dayNumText,
                         {
-                          color: d.isCompleted
-                            ? habitColor
-                            : isSelected
-                            ? theme.text
-                            : d.isToday
-                            ? theme.text
-                            : theme.textMuted,
-                          fontWeight: d.isToday || d.isCompleted ? '800' : '600',
+                          color: isComp || isToday
+                            ? '#FFFFFF'
+                            : theme.textDim,
+                          fontWeight: isComp || isToday ? '800' : '500',
+                          opacity: d.isFuture ? 0.35 : 1,
                         },
                       ]}
                     >
                       {d.dayNum}
                     </Text>
-                    {d.isToday && (
+                    {isComp && (
                       <View
                         style={[
-                          styles.todayDot,
+                          styles.completedDot,
                           { backgroundColor: habitColor },
                         ]}
                       />
@@ -197,7 +191,61 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
             </TouchableOpacity>
           );
         })}
+
+        {/* Leading days of next month (dim text, no box) */}
+        {nextMonthDays.map((dayNum, idx) => (
+          <View key={`next-${idx}`} style={styles.cellWrapper}>
+            <View style={styles.uncompletedDayBox}>
+              <Text style={[styles.dayNumText, { color: theme.textDim, opacity: 0.35 }]}>
+                {dayNum}
+              </Text>
+            </View>
+          </View>
+        ))}
       </View>
+
+      {/* Month Navigation Row at the BOTTOM matching Image 2 */}
+      <View style={styles.bottomNavRow}>
+        {/* Left: Previous / Next Navigation Arrows */}
+        <View style={styles.navArrowsGroup}>
+          <TouchableOpacity
+            onPress={onPrevMonth}
+            style={[styles.arrowCircleBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="chevron-back" size={16} color={theme.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onNextMonth}
+            disabled={monthOffset <= 0}
+            style={[
+              styles.arrowCircleBtn,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+                opacity: monthOffset <= 0 ? 0.3 : 1,
+              },
+            ]}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="chevron-forward" size={16} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Right: Month / Year Capsule Pill */}
+        <View style={[styles.monthCapsulePill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="calendar-outline" size={15} color={theme.textMuted} />
+          <Text style={[styles.monthCapsuleText, { color: theme.text }]}>
+            {currentMonthLabel}
+          </Text>
+        </View>
+      </View>
+
+      {/* Long press note hint matching Image 2 */}
+      <Text style={[styles.noteHintText, { color: theme.textDim }]}>
+        {language === 'ar' ? 'اضغط مطولاً على يوم لإضافة ملاحظة' : 'Long press a day to add a note'}
+      </Text>
 
       {/* Selected Day Control Strip */}
       <View style={[styles.dayControlBar, { borderColor: theme.border }]}>
@@ -329,26 +377,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
   },
-  monthHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  monthLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  arrowBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   weekLabelsRow: {
     flexDirection: 'row-reverse',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   weekLabelText: {
     fontSize: 11.5,
@@ -359,32 +390,93 @@ const styles = StyleSheet.create({
   daysGrid: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
-    rowGap: 6,
+    rowGap: 8,
   },
   cellWrapper: {
     width: '14.28%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   dayBox: {
-    width: 37,
-    height: 37,
+    width: 38,
+    height: 38,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  uncompletedDayBox: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  completedDayBox: {
+    borderRadius: 10,
+    borderWidth: 0,
+  },
+  todayOutlineBox: {
+    borderRadius: 10,
+    borderWidth: 1.8,
+    backgroundColor: 'transparent',
+  },
+  frozenDayBox: {
+    backgroundColor: 'rgba(0, 206, 201, 0.22)',
+    borderColor: '#00CEC9',
+    borderWidth: 1.5,
+    borderRadius: 10,
+  },
+  slipDayBox: {
+    backgroundColor: 'rgba(231, 76, 60, 0.22)',
+    borderColor: '#E74C3C',
+    borderWidth: 1.5,
+    borderRadius: 10,
+  },
   dayNumText: {
-    fontSize: 13,
+    fontSize: 13.5,
   },
-  todayDot: {
-    width: 4,
-    height: 4,
+  completedDot: {
+    width: 3.5,
+    height: 3.5,
     borderRadius: 2,
-    marginTop: 1,
+    marginTop: 2,
   },
-  freezeIcon: {
-    fontSize: 12,
+  bottomNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 10,
+  },
+  navArrowsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  arrowCircleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthCapsulePill: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  monthCapsuleText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  noteHintText: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 2,
   },
   dayControlBar: {
     marginTop: 14,

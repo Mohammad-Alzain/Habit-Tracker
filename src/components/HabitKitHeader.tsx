@@ -63,199 +63,39 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
 
   return (
     <View style={styles.headerWrapper}>
-      {/* Top action row */}
+      {/* Top action row matching HabitKit Image 1 */}
       <View style={[styles.topRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-        {/* Quick Add Button */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => {
-            hapticService.light();
-            soundService.playTap();
-            onAddNew();
-          }}
-          style={[styles.purpleAddBtn, { backgroundColor: '#7C83FD' }]}
-        >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        {/* Scrollable Actions Strip */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.actionsScrollView}
-          contentContainerStyle={[
-            styles.actionsScroll,
-            { flexDirection: rtl ? 'row-reverse' : 'row' },
-          ]}
-        >
-          {/* Roadmap & Commitments Button */}
-          {onOpenRoadmap && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                hapticService.light();
-                soundService.playTap();
-                onOpenRoadmap();
-              }}
-              style={[
-                styles.featurePillBtn,
-                {
-                  backgroundColor: 'rgba(255, 101, 101, 0.15)',
-                  borderColor: 'rgba(255, 101, 101, 0.4)',
-                  borderTopColor: 'rgba(255, 255, 255, 0.25)',
-                },
-              ]}
-            >
-              <Ionicons name="map-outline" size={15} color="#FF6565" />
-              <Text style={[styles.featurePillText, { color: theme.text, fontWeight: '800' }]}>
-                {language === 'ar' ? 'خريطة الالتزامات' : 'Roadmap'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Weekly Review Button */}
-          {onOpenWeeklyReview && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                hapticService.light();
-                soundService.playTap();
-                onOpenWeeklyReview();
-              }}
-              style={[
-                styles.featurePillBtn,
-                {
-                  backgroundColor: 'rgba(46, 213, 115, 0.14)',
-                  borderColor: 'rgba(46, 213, 115, 0.4)',
-                },
-              ]}
-            >
-              <Ionicons name="ribbon-outline" size={15} color="#2ED573" />
-              <Text style={[styles.featurePillText, { color: theme.text, fontWeight: '800' }]}>
-                {t('weeklyReviewTitle', language)}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-
+        {/* Left Actions Group */}
+        <View style={[styles.leftGroup, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          {/* Quick Add Button */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              hapticService.light();
+              soundService.playTap();
+              onAddNew();
+            }}
+            style={[styles.purpleAddBtn, { backgroundColor: '#7C83FD' }]}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
 
           {/* Stats chart button */}
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             onPress={() => {
               hapticService.light();
               soundService.playTap();
               onOpenAnalytics();
             }}
-            style={[styles.featurePillBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            style={[styles.circleBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           >
-            <Ionicons name="bar-chart-outline" size={15} color="#7C83FD" />
-            <Text style={[styles.featurePillText, { color: theme.text }]}>{t('statsAction', language)}</Text>
+            <Ionicons name="bar-chart-outline" size={18} color={theme.text} />
           </TouchableOpacity>
 
-          {/* Habit Stacks Button */}
-          {onOpenStacks && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                hapticService.light();
-                onOpenStacks();
-              }}
-              style={[styles.featurePillBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            >
-              <Ionicons name="link" size={15} color="#6C5CE7" />
-              <Text style={[styles.featurePillText, { color: theme.text }]}>{t('stacksAction', language)}</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Widgets Button */}
-          {onOpenWidgets && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                hapticService.light();
-                onOpenWidgets();
-              }}
-              style={[styles.featurePillBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            >
-              <Ionicons name="cube-outline" size={15} color="#00CEC9" />
-              <Text style={[styles.featurePillText, { color: theme.text }]}>{t('widgetsAction', language)}</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Habit Templates Button */}
-          {onOpenTemplates && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                hapticService.light();
-                onOpenTemplates();
-              }}
-              style={[styles.featurePillBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            >
-              <Ionicons name="sparkles" size={15} color="#F1C40F" />
-              <Text style={[styles.featurePillText, { color: theme.text }]}>{t('templatesAction', language)}</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Milestones / Badges Button */}
-          {onOpenMilestones && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                hapticService.light();
-                onOpenMilestones();
-              }}
-              style={[styles.featurePillBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            >
-              <Ionicons name="trophy" size={15} color="#E67E22" />
-              <Text style={[styles.featurePillText, { color: theme.text }]}>{t('badgesAction', language)}</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Studies Button */}
-          {onOpenStudies && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                hapticService.light();
-                onOpenStudies();
-              }}
-              style={[styles.featurePillBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            >
-              <Ionicons name="school-outline" size={15} color="#10B981" />
-              <Text style={[styles.featurePillText, { color: theme.text }]}>{t('studiesAction', language)}</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-
-        {/* Actions Controls Group: Filter Toggle & Settings */}
-        <View style={[styles.rightGroup, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-          {onToggleSearch && (
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={() => {
-                hapticService.selection();
-                soundService.playTap();
-                onToggleSearch();
-              }}
-              style={[
-                styles.circleBtn,
-                {
-                  backgroundColor: isSearchOpen ? `${theme.primary}25` : theme.surface,
-                  borderColor: isSearchOpen ? `${theme.primary}80` : theme.border,
-                },
-              ]}
-              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-            >
-              <Ionicons
-                name={isSearchOpen ? 'search' : 'search-outline'}
-                size={18}
-                color={isSearchOpen ? theme.primary : theme.text}
-              />
-            </TouchableOpacity>
-          )}
-
+          {/* Filter Toggle Button */}
           {onToggleFilter && (
             <TouchableOpacity
               activeOpacity={0.75}
@@ -275,7 +115,7 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
             >
               <Ionicons
                 name={!isFilterHidden ? 'funnel' : 'funnel-outline'}
-                size={18}
+                size={17}
                 color={!isFilterHidden ? theme.primary : theme.text}
               />
               {selectedCategory !== 'all' && (
@@ -284,25 +124,52 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
             </TouchableOpacity>
           )}
 
-          {/* Settings button */}
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={() => {
-              hapticService.light();
-              soundService.playTap();
-              onOpenSettings();
-            }}
-            style={[
-              styles.circleBtn,
-              {
-                backgroundColor: theme.surface,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <Ionicons name="settings-outline" size={19} color={theme.text} />
-          </TouchableOpacity>
+          {/* Search Toggle Button */}
+          {onToggleSearch && (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                hapticService.selection();
+                soundService.playTap();
+                onToggleSearch();
+              }}
+              style={[
+                styles.circleBtn,
+                {
+                  backgroundColor: isSearchOpen ? `${theme.primary}25` : theme.surface,
+                  borderColor: isSearchOpen ? `${theme.primary}80` : theme.border,
+                },
+              ]}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <Ionicons
+                name={isSearchOpen ? 'search' : 'search-outline'}
+                size={17}
+                color={isSearchOpen ? theme.primary : theme.text}
+              />
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Right: Settings button */}
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={() => {
+            hapticService.light();
+            soundService.playTap();
+            onOpenSettings();
+          }}
+          style={[
+            styles.circleBtn,
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            },
+          ]}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="settings-outline" size={19} color={theme.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Category Pills Strip */}
@@ -375,18 +242,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  actionsScrollView: {
-    flex: 1,
-    marginHorizontal: 8,
-  },
-  actionsScroll: {
+  leftGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 2,
-  },
-  leftActions: {
-    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
@@ -412,11 +269,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  rightGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
   filterActiveDot: {
     position: 'absolute',
     top: 8,
@@ -424,19 +276,6 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-  },
-  featurePillBtn: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    borderRadius: 21,
-    borderWidth: 1,
-  },
-  featurePillText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
   categoriesRow: {
     flexDirection: 'row-reverse',

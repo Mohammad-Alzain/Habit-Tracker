@@ -15,13 +15,27 @@ interface AnalyticsScreenProps {
   theme: ThemeColors;
   onSelectHabit?: (habit: Habit) => void;
   onOpenStudies?: () => void;
+  onOpenWeeklyReview?: () => void;
 }
 
-export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, theme, onSelectHabit, onOpenStudies }) => {
+export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, theme, onSelectHabit, onOpenStudies, onOpenWeeklyReview }) => {
   const globalStats = calculateGlobalStats(habits, logs);
   const behavioral = calculateBehavioralAnalytics(habits, logs);
   const activeHabits = habits.filter((h) => !h.archived);
   const todayStr = getTodayString();
+
+  // Weekly Review / Digest calculations (last 7 days)
+  const last7Days = getLastNDays(7);
+  let weeklyCompletions = 0;
+  const weeklyPossible = activeHabits.length * 7;
+  for (const h of activeHabits) {
+    const hLogs = logs[h.id] || {};
+    const target = h.targetValue || h.targetPerDay || 1;
+    for (const d of last7Days) {
+      if ((hLogs[d] || 0) >= target) weeklyCompletions++;
+    }
+  }
+  const weeklyRate = weeklyPossible > 0 ? Math.round((weeklyCompletions / weeklyPossible) * 100) : 0;
 
   const [detailModalData, setDetailModalData] = useState<ChartDetailData | null>(null);
 
@@ -169,6 +183,62 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
             {globalStats.todayCompletionRate}%
           </Text>
           <Text style={[styles.metricLabel, { color: theme.textMuted }]}>إنجاز اليوم</Text>
+        </View>
+      </View>
+
+      {/* Weekly Review (حصاد الأسبوع) Summary Card */}
+      <View
+        style={[
+          styles.weeklyDigestCard,
+          {
+            backgroundColor: theme.card,
+            borderColor: theme.cardBorder,
+            shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: theme.text === '#FFFFFF' ? 0.28 : 0.08,
+            shadowRadius: 12,
+            elevation: 4,
+          },
+        ]}
+      >
+        <View style={styles.weeklyDigestHeader}>
+          <View style={styles.weeklyDigestTitleRow}>
+            <View style={[styles.weeklyDigestIconCircle, { backgroundColor: 'rgba(46, 213, 115, 0.16)' }]}>
+              <Ionicons name="ribbon-outline" size={22} color="#2ED573" />
+            </View>
+            <View style={styles.weeklyDigestTextWrap}>
+              <Text style={[styles.weeklyDigestTitle, { color: theme.text }]}>
+                حصاد الأسبوع (Weekly Review)
+              </Text>
+              <Text style={[styles.weeklyDigestSubtitle, { color: theme.textMuted }]}>
+                نسبة إنجاز {weeklyRate}% خلال آخر 7 أيام ({weeklyCompletions} عادة منجزة)
+              </Text>
+            </View>
+          </View>
+
+          {onOpenWeeklyReview && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={onOpenWeeklyReview}
+              style={[styles.weeklyDigestBtn, { backgroundColor: '#2ED573' }]}
+            >
+              <Ionicons name="sparkles" size={14} color="#FFFFFF" />
+              <Text style={styles.weeklyDigestBtnText}>عرض الحصاد</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Micro progress bar */}
+        <View style={[styles.weeklyProgressBarTrack, { backgroundColor: theme.surface }]}>
+          <View
+            style={[
+              styles.weeklyProgressBarFill,
+              {
+                width: `${weeklyRate}%`,
+                backgroundColor: weeklyRate >= 80 ? '#2ED573' : weeklyRate >= 50 ? '#7C83FD' : '#F59E0B',
+              },
+            ]}
+          />
         </View>
       </View>
 
@@ -943,5 +1013,68 @@ const styles = StyleSheet.create({
   studiesActionText: {
     fontSize: 12,
     fontWeight: '800',
+  },
+  // Weekly Digest Card
+  weeklyDigestCard: {
+    borderRadius: 20,
+    borderWidth: 1.2,
+    padding: 16,
+    marginBottom: 16,
+  },
+  weeklyDigestHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  weeklyDigestTitleRow: {
+    flex: 1,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+  },
+  weeklyDigestIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weeklyDigestTextWrap: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  weeklyDigestTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 3,
+    textAlign: 'right',
+  },
+  weeklyDigestSubtitle: {
+    fontSize: 11,
+    textAlign: 'right',
+  },
+  weeklyDigestBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  weeklyDigestBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  weeklyProgressBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    marginTop: 14,
+    overflow: 'hidden',
+  },
+  weeklyProgressBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });

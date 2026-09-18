@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: Platform.OS === 'ios' ? 26 : 18,
+    bottom: Platform.OS === 'ios' ? 32 : 40,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 99,

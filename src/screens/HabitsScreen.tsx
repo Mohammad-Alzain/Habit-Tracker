@@ -122,6 +122,25 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     }).start();
   }, [showFilters]);
 
+  // Fast, buttery 60fps view mode cross-fade transition
+  const viewModeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    viewModeAnim.setValue(0.7);
+    Animated.timing(viewModeAnim, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+
+    LayoutAnimation.configureNext({
+      duration: 180,
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    });
+  }, [viewMode]);
+
   // Direct DnD in-place reordering state
   const [draggingHabitId, setDraggingHabitId] = useState<string | null>(null);
   const isDraggingRef = useRef(false);
@@ -701,7 +720,12 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
             </Text>
           </View>
         ) : (
-          <View style={viewMode === 'heatmap' ? styles.gridRowWrap : styles.listColWrap}>
+          <Animated.View
+            style={[
+              viewMode === 'heatmap' ? styles.gridRowWrap : styles.listColWrap,
+              { opacity: viewModeAnim },
+            ]}
+          >
             {displayHabits.map((habit) => {
               const isBeingDragged = draggingHabitId === habit.id;
 
@@ -783,7 +807,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
                 </Animated.View>
               );
             })}
-          </View>
+          </Animated.View>
         )}
 
         <View style={{ height: 100 }} />

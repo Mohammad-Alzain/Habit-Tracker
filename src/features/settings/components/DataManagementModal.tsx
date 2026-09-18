@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Alert, ActivityIndicator, Platform, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitLogs } from '../../../types/habit';
 import { ThemeColors } from '../../../constants/theme';
@@ -40,6 +40,7 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <BlurOverlay theme={theme} style={styles.dataModalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View
           style={[
             styles.dataModalCard,

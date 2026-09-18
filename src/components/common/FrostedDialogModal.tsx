@@ -4,7 +4,7 @@ import {
   StyleSheet,
   Modal,
   Animated,
-  TouchableWithoutFeedback,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   StyleProp,
@@ -51,24 +51,20 @@ export const FrostedDialogModal: React.FC<FrostedDialogModalProps> = ({
     }
   }, [visible, scaleAnim]);
 
-  const content = (
-    <TouchableWithoutFeedback onPress={dismissibleOnTouchOutside && onClose ? onClose : undefined}>
-      <View style={[styles.touchableBackdrop, contentContainerStyle]}>
-        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-          <Animated.View
-            style={[
-              styles.dialogCardWrapper,
-              style,
-              {
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
-          >
-            {children}
-          </Animated.View>
-        </TouchableWithoutFeedback>
-      </View>
-    </TouchableWithoutFeedback>
+  const dialogContent = (
+    <View style={[styles.dialogCenterWrap, contentContainerStyle]} pointerEvents="box-none">
+      <Animated.View
+        style={[
+          styles.dialogCardWrapper,
+          style,
+          {
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        {children}
+      </Animated.View>
+    </View>
   );
 
   return (
@@ -80,15 +76,25 @@ export const FrostedDialogModal: React.FC<FrostedDialogModalProps> = ({
       statusBarTranslucent={true}
     >
       <BlurOverlay theme={theme} blurTarget={blurTarget} style={StyleSheet.absoluteFill}>
+        {/* Full-screen backdrop pressable for guaranteed click-outside dismissal */}
+        {dismissibleOnTouchOutside && onClose ? (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onClose}
+            accessible={false}
+          />
+        ) : null}
+
         {avoidKeyboard ? (
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.keyboardContainer}
+            pointerEvents="box-none"
           >
-            {content}
+            {dialogContent}
           </KeyboardAvoidingView>
         ) : (
-          content
+          dialogContent
         )}
       </BlurOverlay>
     </Modal>
@@ -96,7 +102,7 @@ export const FrostedDialogModal: React.FC<FrostedDialogModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  touchableBackdrop: {
+  dialogCenterWrap: {
     flex: 1,
     width: '100%',
     alignItems: 'center',

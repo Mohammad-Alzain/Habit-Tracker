@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Platform, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeColors } from '../../../constants/theme';
 import { AppSettings } from '../../../store/habitStore';
@@ -35,6 +35,7 @@ export const ThemeLanguageModal: React.FC<ThemeLanguageModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <BlurOverlay theme={theme} style={styles.dataModalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View
           style={[
             styles.dataModalCard,
