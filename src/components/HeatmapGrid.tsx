@@ -11,6 +11,7 @@ interface HeatmapGridProps {
   weeksCount?: number;
   cellSize?: number;
   cellGap?: number;
+  mode?: 'build' | 'quit';
   onCellPress?: (dateStr: string) => void;
 }
 
@@ -22,13 +23,18 @@ const HeatmapGridComponent: React.FC<HeatmapGridProps> = ({
   weeksCount = 15,
   cellSize = 12,
   cellGap = 3.5,
+  mode = 'build',
   onCellPress,
 }) => {
   const todayStr = getTodayString();
   const columns = getCachedHeatmapColumns(weeksCount);
 
-  // Helper to get color with opacity based on ratio
-  const getCellBg = (ratio: number, isCompleted: boolean) => {
+  // Helper to get color with opacity based on ratio and slip status
+  const getCellBg = (count: number, ratio: number, isCompleted: boolean) => {
+    if (count === -1) return 'rgba(231, 76, 60, 0.85)'; // Soft red for logged slip
+    if (mode === 'quit' && targetCount > 1 && count > targetCount) {
+      return 'rgba(231, 76, 60, 0.85)'; // Exceeded ceiling limit
+    }
     if (ratio <= 0) return theme.emptyCell;
     if (isCompleted || ratio >= 1) return habitColor;
     if (ratio >= 0.75) return `${habitColor}CC`;
@@ -47,10 +53,13 @@ const HeatmapGridComponent: React.FC<HeatmapGridProps> = ({
           <View key={`col-${colIdx}`} style={[styles.column, { gap: cellGap }]}>
             {col.map((dateStr) => {
               const count = logs[dateStr] || 0;
-              const ratio = targetCount > 0 ? Math.min(1, count / targetCount) : (count > 0 ? 1 : 0);
-              const isCompleted = count >= targetCount;
+              const ratio = Math.min(1, Math.max(0, count / targetCount));
+              const isSlip = count === -1 || (mode === 'quit' && targetCount > 1 && count > targetCount);
+              const isCompleted = mode === 'quit'
+                ? (targetCount > 1 ? count <= targetCount && count > 0 : count >= 1)
+                : count >= targetCount;
               const isToday = dateStr === todayStr;
-              const bg = getCellBg(ratio, isCompleted);
+              const bg = getCellBg(count, ratio, isCompleted);
 
               return (
                 <TouchableOpacity
@@ -63,15 +72,17 @@ const HeatmapGridComponent: React.FC<HeatmapGridProps> = ({
                       width: cellSize,
                       height: cellSize,
                       backgroundColor: bg,
-                      borderColor: isToday
+                      borderColor: isSlip
+                        ? '#E74C3C'
+                        : isToday
                         ? habitColor
                         : isCompleted
                         ? 'transparent'
                         : 'rgba(255,255,255,0.04)',
-                      borderWidth: isToday ? 1.8 : 0,
-                      shadowColor: isCompleted ? habitColor : 'transparent',
+                      borderWidth: isToday || isSlip ? 1.5 : 0,
+                      shadowColor: isCompleted ? habitColor : isSlip ? '#E74C3C' : 'transparent',
                       shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: isCompleted ? 0.35 : 0,
+                      shadowOpacity: isCompleted || isSlip ? 0.35 : 0,
                       shadowRadius: 3,
                     },
                   ]}

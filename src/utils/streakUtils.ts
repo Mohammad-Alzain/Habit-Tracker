@@ -1,5 +1,27 @@
-import { Habit, HabitLogs, HabitStats } from '../types/habit';
+import { Habit, HabitLogs, HabitStats, DayOfWeek } from '../types/habit';
 import { formatDateToISO, getTodayString, parseISODate, getLastNDays } from './dateUtils';
+import { isHabitScheduledForDay } from './habitScheduleUtils';
+
+export { isHabitScheduledForDay };
+
+/**
+ * Checks whether a specific day's logged count represents a successful day for a habit.
+ * For build habits: count >= targetThreshold
+ * For quit habits (abstinence): count >= 1 (clean/resisted day). count === -1 is a slip.
+ * For quit habits (ceiling limit): count <= ceiling.
+ */
+export function isHabitDaySuccessful(habit: Habit, count: number): boolean {
+  if (habit.mode === 'quit') {
+    if (habit.type === 'numeric') {
+      const ceiling = habit.targetValue || habit.targetPerDay || 1;
+      return count >= 0 && count <= ceiling;
+    }
+    // Boolean / Abstinence: 1 = clean day, -1 = slip, 0 = unlogged
+    return count >= 1;
+  }
+  const targetThreshold = habit.targetValue || habit.targetPerDay || 1;
+  return count >= targetThreshold;
+}
 
 /**
  * Calculates current streak, longest streak, completion statistics, and goal progress for a habit.
@@ -10,12 +32,14 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
   const todayDate = parseISODate(todayStr);
   const targetThreshold = habit.targetValue || habit.targetPerDay || 1;
 
+  const isDayDone = (count: number) => isHabitDaySuccessful(habit, count);
+
   // Check completions for all days backwards from today with Streak Freeze protection
   let currentStreak = 0;
   let checkDate = new Date(todayDate);
   const frozenSet = new Set(habit.streakFreezeDays || []);
 
-  const todayCompleted = (habitLogs[todayStr] || 0) >= targetThreshold;
+  const todayCompleted = isDayDone(habitLogs[todayStr] || 0);
   const todayFrozen = frozenSet.has(todayStr);
 
   if (!todayCompleted && !todayFrozen) {
@@ -26,8 +50,15 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
     const dStr = formatDateToISO(checkDate);
     const count = habitLogs[dStr] || 0;
     const isFrozen = frozenSet.has(dStr);
+    const dayOfWeek = checkDate.getDay() as DayOfWeek;
 
-    if (count >= targetThreshold) {
+    // Skip unscheduled days without breaking streak
+    if (!isHabitScheduledForDay(habit, dayOfWeek)) {
+      checkDate.setDate(checkDate.getDate() - 1);
+      continue;
+    }
+
+    if (isDayDone(count)) {
       currentStreak++;
       checkDate.setDate(checkDate.getDate() - 1);
     } else if (isFrozen) {
@@ -40,7 +71,7 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
 
   // Calculate Longest Streak
   const validDates = Object.keys(habitLogs)
-    .filter((d) => (habitLogs[d] || 0) >= targetThreshold)
+    .filter((d) => isDayDone(habitLogs[d] || 0))
     .concat(habit.streakFreezeDays || []);
   const completedDates = Array.from(new Set(validDates)).sort();
 
@@ -78,7 +109,7 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
   const last30 = getLastNDays(30);
   let last30DaysCount = 0;
   for (const day of last30) {
-    if ((habitLogs[day] || 0) >= targetThreshold) {
+    if (isDayDone(habitLogs[day] || 0)) {
       last30DaysCount++;
     }
   }
@@ -142,7 +173,7 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
     const day = last60[i];
     const weight = Math.pow(0.96, i); // Recent days have exponentially higher weight
     weightSum += weight;
-    if ((habitLogs[day] || 0) >= targetThreshold) {
+    if (isDayDone(habitLogs[day] || 0)) {
       scoreSum += weight;
     }
   }
@@ -152,8 +183,28 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
   const yesterdayDate = new Date(todayDate);
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayStr = formatDateToISO(yesterdayDate);
-  const yesterdayCompleted = (habitLogs[yesterdayStr] || 0) >= targetThreshold;
+  const yesterdayCompleted = isDayDone(habitLogs[yesterdayStr] || 0);
   const missedYesterday = !yesterdayCompleted && !todayCompleted;
+
+  // Quit habit specific metrics
+  let totalCravingsResisted = 0;
+  if (habit.cravingsResisted) {
+    for (const d of Object.keys(habit.cravingsResisted)) {
+      totalCravingsResisted += habit.cravingsResisted[d] || 0;
+    }
+  }
+
+  let totalSlips = 0;
+  if (habit.mode === 'quit') {
+    for (const d of Object.keys(habitLogs)) {
+      if (habit.type === 'numeric') {
+        const ceiling = habit.targetValue || habit.targetPerDay || 1;
+        if ((habitLogs[d] || 0) > ceiling) totalSlips++;
+      } else {
+        if ((habitLogs[d] || 0) === -1) totalSlips++;
+      }
+    }
+  }
 
   return {
     currentStreak,
@@ -168,6 +219,8 @@ export function calculateHabitStats(habit: Habit, logs: HabitLogs): HabitStats {
     goalTargetLabel,
     habitStrengthScore,
     missedYesterday,
+    totalCravingsResisted,
+    totalSlips,
   };
 }
 
@@ -270,7 +323,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
   return [
     {
       id: 'first_step',
-      title: 'أول خطوة 🌟',
+      title: 'أول خطوة',
       description: 'إكمال أول عادة وتسجيل أول إنجاز لك في التطبيق',
       icon: 'sparkles',
       color: '#F1C40F',
@@ -281,7 +334,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
     },
     {
       id: 'week_warrior',
-      title: 'شعلة الأسبوع 🔥',
+      title: 'شعلة الأسبوع',
       description: 'المحافظة على ستريك 7 أيام متواصلة في أي عادة',
       icon: 'flame',
       color: '#E67E22',
@@ -292,7 +345,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
     },
     {
       id: 'habit_formed',
-      title: 'ترسيخ أولي ⚡',
+      title: 'ترسيخ أولي',
       description: 'الاستمرار 21 يوماً متواصلة (المرحلة الأولى في بناء مسار العادة)',
       icon: 'flash',
       color: '#7C83FD',
@@ -303,7 +356,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
     },
     {
       id: 'neuro_wiring',
-      title: 'المسار العصبي 🧠',
+      title: 'المسار العصبي',
       description: 'الوصول لـ 66 يوماً (المتوسط العلمي الدقيق لترسيخ العادة التلقائية)',
       icon: 'bulb',
       color: '#9B59B6',
@@ -314,7 +367,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
     },
     {
       id: 'century_club',
-      title: 'نادي المئة 💯',
+      title: 'نادي المئة',
       description: 'تسجيل 100 إنجاز في عادة واحدة وتحقيق الاستدامة الحقيقية',
       icon: 'trophy',
       color: '#00CEC9',
@@ -325,7 +378,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
     },
     {
       id: 'daily_master',
-      title: 'سيد الروتين 🎯',
+      title: 'سيد الروتين',
       description: 'إنجاز 5 عادات مختلفة بنجاح في نفس اليوم',
       icon: 'checkmark-done-circle',
       color: '#2ECC71',
@@ -336,7 +389,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
     },
     {
       id: 'goal_crusher',
-      title: 'قاهر الأهداف 🏁',
+      title: 'قاهر الأهداف',
       description: 'تحقيق هدف العادة المخصص بالكامل بنسبة 100%',
       icon: 'ribbon',
       color: '#E056FD',
@@ -347,7 +400,7 @@ export function calculateMilestones(habits: Habit[], logs: HabitLogs): Milestone
     },
     {
       id: 'titan_routine',
-      title: 'الدرع الذهبي 🛡️',
+      title: 'الدرع الذهبي',
       description: 'تسجيل 200 إنجاز إجمالي تراكمي عبر جميع عاداتك',
       icon: 'shield-checkmark',
       color: '#FF7675',

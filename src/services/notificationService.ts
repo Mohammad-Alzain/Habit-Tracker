@@ -2,6 +2,7 @@ import { Platform, Alert } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Habit } from '../types/habit';
+import { getMorningQuote, getInactivityQuote } from '../constants/motivationalQuotes';
 
 /**
  * Safely check if running inside Expo Go client.
@@ -30,7 +31,7 @@ export function checkIsExpoGo(): boolean {
 let _notificationsModule: typeof import('expo-notifications') | null = null;
 let _handlerConfigured = false;
 
-function getNotificationsModule(): typeof import('expo-notifications') | null {
+export function getNotificationsModule(): typeof import('expo-notifications') | null {
   if (checkIsExpoGo() || Platform.OS === 'web') {
     return null;
   }
@@ -105,13 +106,24 @@ export class NotificationService {
         return false;
       }
 
-      // Configure Android Channel
+      // Configure Android Channels
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('habit-reminders', {
           name: 'تذكيرات العادات اليومية',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#7C83FD',
+          sound: 'default',
+          enableVibrate: true,
+          enableLights: true,
+          showBadge: true,
+        });
+
+        await Notifications.setNotificationChannelAsync('focus-timer', {
+          name: 'مؤقت التركيز وجلسات المهام',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 350, 200, 350],
+          lightColor: '#2ED573',
           sound: 'default',
           enableVibrate: true,
           enableLights: true,
@@ -146,9 +158,11 @@ export class NotificationService {
       const hour = parseInt(parts[0], 10);
       const minute = parseInt(parts[1], 10);
 
-      const title = `تذكير العادة: ${habit.name} ✨`;
-      const body = habit.description
-        ? `${habit.description} - حافظ على سلسلتك مستمرة اليوم!`
+      const title = `تذكير العادة: ${habit.name}`;
+      const body = habit.customReminderText && habit.customReminderText.trim()
+        ? habit.customReminderText.trim()
+        : habit.description
+        ? `${habit.description} - حافظ على مسارك مستمراً اليوم!`
         : `حان وقت إنجاز عادة "${habit.name}"، خطواتك الصغيرة تصنع فارقاً كبيراً!`;
 
       if (Platform.OS === 'web') {
@@ -205,9 +219,103 @@ export class NotificationService {
   }
 
   /**
-   * Resync all scheduled reminders for all active habits
+   * Schedule daily morning motivation reminder, prompting the user with their first habit and an inspiring quote
    */
-  public static async syncAllHabitReminders(habits: Habit[]): Promise<void> {
+  public static async scheduleMorningMotivationReminder(habits: Habit[], morningTime: string = '08:00'): Promise<void> {
+    try {
+      await this.init();
+      if (Platform.OS === 'web' || checkIsExpoGo()) return;
+
+      const Notifications = getNotificationsModule();
+      if (!Notifications) return;
+
+      await Notifications.cancelScheduledNotificationAsync('daily-morning-motivation').catch(() => {});
+
+      const parts = morningTime.split(':');
+      const hour = parseInt(parts[0], 10) || 8;
+      const minute = parseInt(parts[1], 10) || 0;
+
+      const activeHabits = habits.filter((h) => !h.archived);
+      const firstHabit = activeHabits[0];
+      const quote = getMorningQuote();
+
+      const title = 'صباح الخير والهمة! ☀️';
+      const body = firstHabit
+        ? `ابدأ يومك بإنجاز أول عادة: "${firstHabit.name}".\n"${quote.text}"`
+        : `"${quote.text}" - ابدأ يومك بتلوين عاداتك ومساراتك اليومية!`;
+
+      const trigger: any = {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+        channelId: 'habit-reminders',
+      };
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'daily-morning-motivation',
+        content: {
+          title,
+          body,
+          sound: true,
+          badge: 1,
+          data: { type: 'morning_motivation' },
+        },
+        trigger,
+      });
+    } catch (e) {
+      console.warn('Failed to schedule morning motivation reminder:', e);
+    }
+  }
+
+  /**
+   * Schedules an inactivity reminder if the user hasn't opened the app for a full day (24 hours)
+   */
+  public static async scheduleInactivityReminder(hoursDelay: number = 24): Promise<void> {
+    try {
+      await this.init();
+      if (Platform.OS === 'web' || checkIsExpoGo()) return;
+
+      const Notifications = getNotificationsModule();
+      if (!Notifications) return;
+
+      await Notifications.cancelScheduledNotificationAsync('inactivity-reminder').catch(() => {});
+
+      const quote = getInactivityQuote();
+      const title = 'عاداتك بانتظارك! حافظ على وتيرة استمرارك 🔥';
+      const body = `"${quote.text}" - لم تفتح التطبيق اليوم، دقيقة واحدة تكفي لحماية سلسلتك وإبقاء الشعلة متقدة!`;
+
+      const seconds = Math.max(60, hoursDelay * 3600);
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'inactivity-reminder',
+        content: {
+          title,
+          body,
+          sound: true,
+          badge: 1,
+          data: { type: 'inactivity_reminder' },
+        },
+        trigger: {
+          seconds,
+          channelId: 'habit-reminders',
+        } as any,
+      });
+    } catch (e) {
+      console.warn('Failed to schedule inactivity reminder:', e);
+    }
+  }
+
+  /**
+   * Reschedule the 24-hour inactivity reminder whenever the app is actively opened or habit logged
+   */
+  public static async rescheduleInactivityReminder(): Promise<void> {
+    await this.scheduleInactivityReminder(24);
+  }
+
+  /**
+   * Resync all scheduled reminders for all active habits, along with morning motivation and inactivity protection
+   */
+  public static async syncAllHabitReminders(habits: Habit[], morningTime: string = '08:00'): Promise<void> {
     try {
       const activeWithReminders = habits.filter(
         (h) => !h.archived && h.reminderEnabled && h.reminderTime
@@ -216,6 +324,9 @@ export class NotificationService {
       for (const h of activeWithReminders) {
         await this.scheduleHabitReminder(h);
       }
+
+      await this.scheduleMorningMotivationReminder(habits, morningTime);
+      await this.scheduleInactivityReminder(24);
     } catch (err) {
       console.warn('Failed to sync all habit reminders:', err);
     }
@@ -228,7 +339,7 @@ export class NotificationService {
     try {
       await this.init();
 
-      const title = `تذكير تجريبي: ${habitName} 🔔`;
+      const title = `تذكير تجريبي: ${habitName}`;
       const body = `حان وقت إنجاز عادتك (${reminderTime || '20:00'})! الإشعارات تعمل بدقة وسلاسة.`;
 
       // 1. If Web
@@ -255,8 +366,8 @@ export class NotificationService {
       // 2. If running inside Expo Go (where expo-notifications is not supported in SDK 53+)
       if (checkIsExpoGo()) {
         Alert.alert(
-          '🔔 تجربة التذكير (وضع Expo Go)',
-          `تم بنجاح اختبار تنبيه عادة "${habitName}" لوقت (${reminderTime || '20:00'})!\n\n💡 ملاحظة تقنية: في تحديث Expo SDK 53، قامت شركة Expo بإلغاء موديول الإشعارات التلقائية داخل تطبيق Expo Go ونقله إلى Development Builds (تطبيق APK مستقل). إعدادات التذكير تعمل ومحفوظة بنجاح، وستعمل في شريط الإشعارات مباشرة عند تثبيت التطبيق كـ APK.`
+          'تجربة التذكير (وضع Expo Go)',
+          `تم بنجاح اختبار تنبيه عادة "${habitName}" لوقت (${reminderTime || '20:00'})!\n\nملاحظة تقنية: في تحديث Expo SDK 53، قامت شركة Expo بإلغاء موديول الإشعارات التلقائية داخل تطبيق Expo Go ونقله إلى Development Builds (تطبيق APK مستقل). إعدادات التذكير تعمل ومحفوظة بنجاح، وستعمل في شريط الإشعارات مباشرة عند تثبيت التطبيق كـ APK.`
         );
         return true;
       }
@@ -286,6 +397,99 @@ export class NotificationService {
         `حان وقت إنجاز عادتك (${reminderTime || '20:00'})!`
       );
       return false;
+    }
+  }
+
+  /**
+   * Schedule notification when countdown timer finishes
+   */
+  public static async scheduleTimerCompletion(
+    title: string,
+    body: string,
+    secondsRemaining: number,
+    data?: any
+  ): Promise<string | null> {
+    try {
+      await this.init();
+      await this.cancelTimerNotifications();
+
+      if (Platform.OS === 'web' || checkIsExpoGo()) {
+        return 'simulated-timer-notification';
+      }
+
+      const Notifications = getNotificationsModule();
+      if (!Notifications) return null;
+
+      const trigger: any = {
+        seconds: Math.max(1, Math.round(secondsRemaining)),
+        channelId: 'focus-timer',
+      };
+
+      const identifier = await Notifications.scheduleNotificationAsync({
+        identifier: 'focus-timer-finish',
+        content: {
+          title,
+          body,
+          sound: true,
+          badge: 1,
+          data,
+          priority: Notifications.AndroidNotificationPriority?.MAX,
+        },
+        trigger,
+      });
+
+      return identifier;
+    } catch (err) {
+      console.warn('Failed to schedule timer completion notification:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Show active banner/notification that timer is currently running
+   */
+  public static async showTimerStarted(
+    title: string,
+    body: string,
+    data?: any
+  ): Promise<void> {
+    try {
+      await this.init();
+      if (Platform.OS === 'web' || checkIsExpoGo()) return;
+
+      const Notifications = getNotificationsModule();
+      if (!Notifications) return;
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'focus-timer-active',
+        content: {
+          title,
+          body,
+          sound: false,
+          data,
+          priority: Notifications.AndroidNotificationPriority?.HIGH,
+        },
+        trigger: null,
+      });
+    } catch (err) {
+      console.warn('Failed to show timer started notification:', err);
+    }
+  }
+
+  /**
+   * Cancel all timer notifications (both active badge and pending finish alert)
+   */
+  public static async cancelTimerNotifications(): Promise<void> {
+    try {
+      if (Platform.OS === 'web' || checkIsExpoGo()) return;
+      const Notifications = getNotificationsModule();
+      if (Notifications) {
+        await Notifications.cancelScheduledNotificationAsync('focus-timer-finish').catch(() => {});
+        await Notifications.dismissNotificationAsync('focus-timer-active').catch(() => {});
+        await Notifications.dismissNotificationAsync('focus-timer-finish').catch(() => {});
+      }
+    } catch (err) {
+      // Safe fallback
     }
   }
 }

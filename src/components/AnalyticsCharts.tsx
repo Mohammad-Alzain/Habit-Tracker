@@ -266,7 +266,7 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
             </View>
 
             <View style={styles.streakBadge}>
-              <Text style={styles.streakFire}>🔥</Text>
+              <Ionicons name="flame" size={13} color="#F59E0B" />
               <Text style={[styles.streakNumber, { color: theme.text }]}>
                 {item.stats.currentStreak}
               </Text>

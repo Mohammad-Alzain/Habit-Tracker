@@ -123,11 +123,12 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: 'transparent' }]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       {/* 4 Summary Cards Grid */}
       <View style={styles.metricsGrid}>
         <View style={[styles.metricCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -269,7 +270,7 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
               <Text style={[styles.tierText, {
                 color: consistencyScore >= 80 ? '#10B981' : consistencyScore >= 50 ? '#F39C12' : '#E74C3C'
               }]}>
-                {consistencyScore >= 85 ? 'مثالي 🌟' : consistencyScore >= 70 ? 'ممتاز 🚀' : consistencyScore >= 50 ? 'جيد 👍' : 'تركيز 🎯'}
+                {consistencyScore >= 85 ? 'مثالي' : consistencyScore >= 70 ? 'ممتاز' : consistencyScore >= 50 ? 'جيد' : 'يحتاج تركيز'}
               </Text>
             </View>
           </View>
@@ -352,7 +353,7 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
           {/* Golden Day */}
           <View style={[styles.dayHighlightBox, { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
             <View style={styles.dayHighlightHeader}>
-              <Text style={styles.dayIcon}>🌟</Text>
+              <Ionicons name="sparkles" size={15} color="#F59E0B" />
               <Text style={[styles.dayHighlightLabel, { color: '#F59E0B' }]}>اليوم الذهبي (الأعلى)</Text>
             </View>
             <Text style={[styles.dayNameText, { color: theme.text }]}>
@@ -366,7 +367,7 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
           {/* Critical Day */}
           <View style={[styles.dayHighlightBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
             <View style={styles.dayHighlightHeader}>
-              <Text style={styles.dayIcon}>⚠️</Text>
+              <Ionicons name="alert-circle" size={15} color="#EF4444" />
               <Text style={[styles.dayHighlightLabel, { color: '#EF4444' }]}>اليوم الحرج (الأدنى)</Text>
             </View>
             <Text style={[styles.dayNameText, { color: theme.text }]}>
@@ -417,22 +418,22 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
       {(() => {
         const RESILIENCE_TIERS: Record<string, { label: string; color: string; desc: string }> = {
           steel: {
-            label: 'فولاذي 🛡️',
+            label: 'فولاذي',
             color: '#10B981',
             desc: 'تطبيق رائع لقاعدة جيمس كلير: لا تنقطع مرتين أبداً!',
           },
           excellent: {
-            label: 'ممتاز ⚡',
+            label: 'ممتاز',
             color: '#3498DB',
             desc: 'تستعيد مسارك بسرعة بعد أي تعثر عابر.',
           },
           moderate: {
-            label: 'جيد 👍',
+            label: 'جيد',
             color: '#F39C12',
             desc: 'تعافٍ مقبول، احرص على تدارك الغياب في اليوم التالي.',
           },
           needs_focus: {
-            label: 'يحتاج تركيز 🎯',
+            label: 'يحتاج تركيز',
             color: '#E74C3C',
             desc: 'الانقطاع المتتابع يكسر الزخم العصبي، عد سريعاً!',
           },
@@ -490,7 +491,10 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
                 </>
               ) : (
                 <>
-                  <Text style={[styles.scoreValue, { color: theme.textDim, fontSize: 18 }]}>قيد الرصد 🔍</Text>
+                  <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginVertical: 4 }}>
+                    <Ionicons name="search-outline" size={16} color={theme.textDim} />
+                    <Text style={[styles.scoreValue, { color: theme.textDim, fontSize: 16 }]}>قيد الرصد</Text>
+                  </View>
                   <Text style={[styles.subCardDesc, { color: theme.textMuted }]}>
                     استمر بالتسجيل 7 أيام إضافية لرصد العادة المحورية
                   </Text>
@@ -515,7 +519,7 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
             <View style={styles.studiesBadgeRow}>
               <Text style={[styles.studiesTitle, { color: theme.text }]}>مكتبة أبحاث ودراسات العادات</Text>
               <View style={[styles.studiesNewBadge, { backgroundColor: '#10B98125' }]}>
-                <Text style={styles.studiesNewBadgeText}>أبحاث معتمدة 🔬</Text>
+                <Text style={styles.studiesNewBadgeText}>أبحاث معتمدة</Text>
               </View>
             </View>
             <Text style={[styles.studiesDesc, { color: theme.textMuted }]}>
@@ -538,18 +542,19 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ habits, logs, 
         onPressHabit={(h) => onSelectHabit && onSelectHabit(h)}
       />
 
-      {/* Chart Detail Modal */}
-      <ChartDetailModal
-        visible={!!detailModalData}
-        data={detailModalData}
-        habits={habits}
-        theme={theme}
-        onClose={() => setDetailModalData(null)}
-        onSelectHabit={(h) => onSelectHabit && onSelectHabit(h)}
-      />
-
       <View style={{ height: 100 }} />
     </ScrollView>
+
+    {/* Chart Detail Modal */}
+    <ChartDetailModal
+      visible={!!detailModalData}
+      data={detailModalData}
+      habits={habits}
+      theme={theme}
+      onClose={() => setDetailModalData(null)}
+      onSelectHabit={(h) => onSelectHabit && onSelectHabit(h)}
+    />
+  </View>
   );
 };
 

@@ -22,62 +22,65 @@ export interface ThemeColors {
   glassBorder: string;
   glassSpecular: string;
   glassSurface: string;
+  glassModal: string;
   glassGlow: string;
 }
 
-// Exact HabitKit deep matte dark aesthetic with premium frosted glass
+// Exact HabitKit deep matte dark aesthetic with premium frosted obsidian glass
 export const DARK_THEME: ThemeColors = {
   background: '#0B0E14',
-  card: '#161923',
-  cardBorder: 'rgba(255, 255, 255, 0.08)',
+  card: '#151924',
+  cardBorder: 'rgba(255, 255, 255, 0.07)',
   text: '#FFFFFF',
-  textMuted: '#8E96A8',
-  textDim: '#5B6275',
+  textMuted: '#94A3B8',
+  textDim: '#64748B',
   primary: '#7C83FD',
   primaryHover: '#6C73ED',
   danger: '#FF6565',
   success: '#2ECC71',
   border: 'rgba(255, 255, 255, 0.08)',
-  surface: '#1D212E',
+  surface: '#181D2B',
   emptyCell: '#1A1D27',
   tabBarBg: 'rgba(14, 17, 26, 0.90)',
-  tabBarBorder: 'rgba(255, 255, 255, 0.08)',
+  tabBarBorder: 'rgba(255, 255, 255, 0.07)',
   tabActive: '#7C83FD',
   tabInactive: '#6E768A',
-  inputBg: '#131620',
-  modalOverlay: 'rgba(3, 5, 10, 0.82)',
-  glassBg: 'rgba(16, 20, 32, 0.82)',
-  glassBorder: 'rgba(255, 255, 255, 0.09)',
-  glassSpecular: 'rgba(255, 255, 255, 0.26)',
-  glassSurface: 'rgba(22, 27, 42, 0.72)',
-  glassGlow: 'rgba(124, 131, 253, 0.22)',
+  inputBg: 'rgba(255, 255, 255, 0.07)',
+  modalOverlay: 'rgba(0, 0, 0, 0.65)',
+  glassBg: '#151924',
+  glassBorder: 'rgba(255, 255, 255, 0.08)',
+  glassSpecular: 'rgba(255, 255, 255, 0.08)',
+  glassSurface: '#151924', // 100% solid card matching HabitKit aesthetic
+  glassModal: '#181D2B', // 100% solid, crisp, high-contrast dialog card
+  glassGlow: 'transparent',
 };
 
 export const LIGHT_THEME: ThemeColors = {
-  background: '#F6F7FB',
+  background: '#F6F8FC',
   card: '#FFFFFF',
-  cardBorder: '#E3E7EE',
-  text: '#12141A',
-  textMuted: '#6B7280',
-  textDim: '#9CA3AF',
+  cardBorder: '#E5E9F0',
+  text: '#0F172A',
+  textMuted: '#475569',
+  textDim: '#64748B',
   primary: '#6366F1',
   primaryHover: '#4F46E5',
   danger: '#EF4444',
   success: '#10B981',
-  border: '#E3E7EE',
-  surface: '#EDF1F7',
-  emptyCell: '#E5E9F0',
+  border: '#E2E8F0',
+  surface: '#F8FAFD', // Luminous clean pearl off-white surface
+  emptyCell: '#E2E8F0',
   tabBarBg: '#FFFFFF',
-  tabBarBorder: '#E3E7EE',
+  tabBarBorder: '#E5E9F0',
   tabActive: '#6366F1',
-  tabInactive: '#9CA3AF',
-  inputBg: '#FFFFFF',
-  modalOverlay: 'rgba(0, 0, 0, 0.45)',
-  glassBg: 'rgba(255, 255, 255, 0.82)',
-  glassBorder: 'rgba(255, 255, 255, 0.92)',
-  glassSpecular: 'rgba(255, 255, 255, 1.0)',
-  glassSurface: 'rgba(244, 246, 253, 0.82)',
-  glassGlow: 'rgba(99, 102, 241, 0.12)',
+  tabInactive: '#94A3B8',
+  inputBg: 'rgba(255, 255, 255, 0.85)',
+  modalOverlay: 'rgba(15, 23, 42, 0.40)', // Smooth clean backdrop scrim
+  glassBg: '#FFFFFF',
+  glassBorder: '#E2E8F0',
+  glassSpecular: '#E2E8F0',
+  glassSurface: '#FFFFFF', // 100% solid white card
+  glassModal: '#FFFFFF', // 100% solid white dialog card
+  glassGlow: 'transparent',
 };
 
 // Exact 21 colors from HabitKit palette screenshots (3 rows x 7 swatches)

@@ -113,11 +113,11 @@ export function calculateGamification(habits: Habit[], logs: HabitLogs): {
   // Level thresholds
   const levelThresholds = [0, 300, 800, 1600, 3000, 6000];
   const levelTitles = [
-    'مبتدئ العادات 🌱',
-    'ممارس ملتزم ⚡',
-    'محارب الانضباط 🛡️',
-    'سيد العادات 👑',
-    'أسطورة الإتقان 💎',
+    'مبتدئ العادات',
+    'ممارس ملتزم',
+    'محارب الانضباط',
+    'سيد العادات',
+    'أسطورة الإتقان',
   ];
 
   let level = 1;

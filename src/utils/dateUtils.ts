@@ -213,3 +213,18 @@ export function getCached22WeekColumns(): string[][] {
   cached22WeekColumns = columns;
   return columns;
 }
+
+/**
+ * Returns an array of ISO date strings for the Roadmap view:
+ * pastDays before today, today itself, and futureDays ahead.
+ */
+export function getRoadmapDays(pastDays: number = 2, futureDays: number = 14): string[] {
+  const today = new Date();
+  const list: string[] = [];
+  for (let i = -pastDays; i <= futureDays; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    list.push(formatDateToISO(d));
+  }
+  return list;
+}

@@ -13,6 +13,7 @@ import { ThemeColors } from '../constants/theme';
 import { SCIENTIFIC_STUDIES, DAILY_BEHAVIORAL_QUOTES } from '../constants/habitStudies';
 import { ScientificStudy } from '../types/habit';
 import { ModalHeader } from './ModalHeader';
+import { BlurOverlay } from './common/BlurOverlay';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
 import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
@@ -41,16 +42,19 @@ export const HabitStudiesModal: React.FC<HabitStudiesModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
+      <BlurOverlay theme={theme} style={styles.overlay}>
         <View
           style={[
             styles.card,
             {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.border,
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: theme.text === '#FFFFFF' ? 0.35 : 0.12,
+              shadowRadius: 24,
+              elevation: 12,
             },
-            Platform.OS === 'web' && ({ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' } as any),
           ]}
         >
           {/* Top Header */}
@@ -72,8 +76,9 @@ export const HabitStudiesModal: React.FC<HabitStudiesModalProps> = ({
                   <Text style={[styles.refreshText, { color: theme.textDim }]}>حكمة أخرى</Text>
                 </TouchableOpacity>
 
-                <View style={styles.wisdomTagRow}>
-                  <Text style={[styles.wisdomTag, { color: '#F1C40F' }]}>حكمة اليوم السلوكية 💡</Text>
+                <View style={[styles.wisdomTagRow, { flexDirection: 'row-reverse', alignItems: 'center', gap: 4 }]}>
+                  <Ionicons name="bulb-outline" size={14} color="#F1C40F" />
+                  <Text style={[styles.wisdomTag, { color: '#F1C40F' }]}>حكمة اليوم السلوكية</Text>
                 </View>
               </View>
 
@@ -157,13 +162,13 @@ export const HabitStudiesModal: React.FC<HabitStudiesModalProps> = ({
                   {/* Detailed Analysis Collapsible */}
                   {isExpanded && (
                     <View style={[styles.detailsBox, { borderColor: theme.border }]}>
-                      <Text style={[styles.detailsTitle, { color: theme.text }]}>تفاصيل ومنهجية البحث 🔬:</Text>
+                      <Text style={[styles.detailsTitle, { color: theme.text }]}>تفاصيل ومنهجية البحث:</Text>
                       <Text style={[styles.detailsText, { color: theme.textMuted }]}>
                         {study.detailedAnalysis}
                       </Text>
 
                       <View style={styles.tagsRow}>
-                        {study.tags.map((t, idx) => (
+                        {study.tags.map((t: string, idx: number) => (
                           <View key={idx} style={[styles.tagPill, { backgroundColor: theme.card }]}>
                             <Text style={[styles.tagText, { color: theme.textDim }]}>#{t}</Text>
                           </View>
@@ -178,7 +183,7 @@ export const HabitStudiesModal: React.FC<HabitStudiesModalProps> = ({
                     style={styles.expandToggleBtn}
                   >
                     <Text style={[styles.expandToggleText, { color: study.color }]}>
-                      {isExpanded ? 'طي التفاصيل' : 'قراءة تفاصيل ومنهجية البحث 📖'}
+                      {isExpanded ? 'طي التفاصيل' : 'قراءة تفاصيل ومنهجية البحث'}
                     </Text>
                     <Ionicons
                       name={isExpanded ? 'chevron-up' : 'chevron-down'}
@@ -193,7 +198,7 @@ export const HabitStudiesModal: React.FC<HabitStudiesModalProps> = ({
             <View style={{ height: 24 }} />
           </ScrollView>
         </View>
-      </View>
+      </BlurOverlay>
     </Modal>
   );
 };

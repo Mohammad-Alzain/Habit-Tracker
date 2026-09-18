@@ -33,7 +33,7 @@ export const BadgesScreen: React.FC<BadgesScreenProps> = ({ habits, logs, theme 
       >
         <View style={styles.heroTop}>
           <View style={[styles.levelCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: '#F59E0B' }]}>
-            <Text style={styles.levelEmoji}>👑</Text>
+            <Ionicons name="ribbon" size={16} color="#F59E0B" />
             <Text style={styles.levelNumber}>{game.level}</Text>
           </View>
           <View style={styles.heroInfo}>
@@ -114,9 +114,12 @@ export const BadgesScreen: React.FC<BadgesScreenProps> = ({ habits, logs, theme 
                     ]}
                   />
                 </View>
-                <Text style={[styles.badgeRewardText, { color: badge.unlocked ? badge.color : theme.textDim }]}>
-                  {badge.unlocked ? '✅ مفتوح' : `+${badge.rewardXP} XP`}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {badge.unlocked && <Ionicons name="checkmark-circle" size={13} color={badge.color} />}
+                  <Text style={[styles.badgeRewardText, { color: badge.unlocked ? badge.color : theme.textDim }]}>
+                    {badge.unlocked ? 'مفتوح' : `+${badge.rewardXP} XP`}
+                  </Text>
+                </View>
               </View>
             </View>
           );

@@ -13,6 +13,11 @@ class SoundService {
     }
   }
 
+  async initNative(): Promise<void> {
+    // Safe initialization with zero external native dependencies
+    return;
+  }
+
   private getAudioContext(): any {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
@@ -34,10 +39,10 @@ class SoundService {
   }
 
   /**
-   * Plays a pleasant, harmonic celebration chime when a habit is completed.
-   * Chime uses an arpeggio sequence (C5 -> E5 -> G5) with warm exponential decay.
+   * Plays a pleasant celebration chime.
+   * Runs via Web Audio API on web and safely degrades on native without crashes.
    */
-  playComplete() {
+  async playComplete() {
     if (!this.isEnabled()) return;
 
     try {
@@ -75,9 +80,9 @@ class SoundService {
   }
 
   /**
-   * Plays a subtle pop / click sound for button taps or switching.
+   * Plays a subtle pop / click sound for button taps.
    */
-  playTap() {
+  async playTap() {
     if (!this.isEnabled()) return;
 
     try {

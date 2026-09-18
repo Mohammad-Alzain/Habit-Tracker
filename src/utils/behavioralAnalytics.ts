@@ -115,7 +115,7 @@ export function calculateBehavioralAnalytics(habits: Habit[], logs: HabitLogs): 
   const total = Math.max(1, activeHabits.length);
 
   let persona = {
-    title: 'صانع الروتين المتوازن 🎯',
+    title: 'صانع الروتين المتوازن',
     description: 'تمتلك توزيعاً متناغماً بين مجالات حياتك وعاداتك على مدار اليوم.',
     icon: 'compass',
     badgeColor: '#7C83FD',
@@ -123,28 +123,28 @@ export function calculateBehavioralAnalytics(habits: Habit[], logs: HabitLogs): 
 
   if (morningCount / total >= 0.4) {
     persona = {
-      title: 'المبكر الاستراتيجي 🌅',
+      title: 'المبكر الاستراتيجي',
       description: 'تبدأ يومك بتركيز عالٍ وتستثمر الساعات الذهبية الأولى في بناء مسارك.',
       icon: 'sunny',
       badgeColor: '#F39C12',
     };
   } else if (fitnessHealthCount / total >= 0.4) {
     persona = {
-      title: 'المحارب الرياضي ⚡',
+      title: 'المحارب الرياضي',
       description: 'تركز طاقتك الأساسية على الصحة البدنية والانضباط الجسدي والحيوي.',
       icon: 'barbell',
       badgeColor: '#E67E22',
     };
   } else if (mindLearningCount / total >= 0.4) {
     persona = {
-      title: 'المفكر المتأمل 🧘',
+      title: 'المفكر المتأمل',
       description: 'تولي أولوية كبرى للهدوء الذهني والقراءة وتوسيع المدارك المعرفية.',
       icon: 'leaf',
       badgeColor: '#2ECC71',
     };
   } else if (eveningCount / total >= 0.4) {
     persona = {
-      title: 'المنجز الليلي 🌙',
+      title: 'المنجز الليلي',
       description: 'تصل ذروة طاقتك وهدوئك في المساء وتستثمر ساعات الليل في إتمام أهدافك.',
       icon: 'moon',
       badgeColor: '#575FCF',

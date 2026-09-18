@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Share,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -14,6 +15,7 @@ import { ThemeColors } from '../constants/theme';
 import { calculateHabitStats } from '../utils/streakUtils';
 import { getTodayString, parseISODate, getArabicMonth } from '../utils/dateUtils';
 import { ModalHeader } from './ModalHeader';
+import { BlurOverlay } from './common/BlurOverlay';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
 import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
@@ -35,9 +37,9 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
   onClose,
 }) => {
   const rtl = isRTL(language);
-  if (!habit) return null;
-
   const [copied, setCopied] = useState(false);
+
+  if (!habit) return null;
   const stats = calculateHabitStats(habit, logs);
   const todayStr = getTodayString();
   const todayDate = parseISODate(todayStr);
@@ -69,12 +71,12 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
   }
 
   const handleCopySummary = async () => {
-    const summary = `🔥 مسار إنجاز عادة: ${habit.name}\n` +
-      `📅 الستريك الحالي: ${stats.currentStreak} أيام متتالية\n` +
-      `🏆 أفضل ستريك: ${stats.longestStreak} يوماً\n` +
-      `✅ إجمالي الإنجازات: ${stats.totalCompletions} مرة\n` +
-      `📈 نسبة النجاح: ${stats.completionRate}%\n` +
-      `تطبيق تتبع العادات اليومي`;
+    const summary = `مسار إنجاز عادة: ${habit.name}\n` +
+      `الستريك الحالي: ${stats.currentStreak} أيام متتالية\n` +
+      `أفضل ستريك: ${stats.longestStreak} يوماً\n` +
+      `إجمالي الإنجازات: ${stats.totalCompletions} مرة\n` +
+      `نسبة النجاح: ${stats.completionRate30Days}%\n` +
+      `تطبيق Habit Flow`;
 
     await Clipboard.setStringAsync(summary);
     setCopied(true);
@@ -84,7 +86,7 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
   const handleShareSystem = async () => {
     try {
       await Share.share({
-        message: `🔥 أنا مستمر في عادة "${habit.name}" منذ ${stats.currentStreak} أيام متتالية! أنجزت العادة ${stats.totalCompletions} مرة بنسبة نجاح ${stats.completionRate}%.`,
+        message: `أنا مستمر في عادة "${habit.name}" منذ ${stats.currentStreak} أيام متتالية! أنجزت العادة ${stats.totalCompletions} مرة بنسبة نجاح ${stats.completionRate30Days}%.`,
         title: `إنجاز عادة ${habit.name}`,
       });
     } catch (err) {
@@ -94,18 +96,17 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.75)' }]}>
+      <BlurOverlay theme={theme} style={styles.overlay}>
         <View
           style={[
             styles.modalCard,
             {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.cardBorder,
-              shadowColor: '#000',
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
               shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: 0.35,
-              shadowRadius: 20,
+              shadowOpacity: theme.text === '#FFFFFF' ? 0.35 : 0.12,
+              shadowRadius: 24,
               elevation: 14,
             },
           ]}
@@ -176,19 +177,19 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
             {/* Footer Watermark */}
             <View style={styles.watermarkRow}>
               <Ionicons name="shield-checkmark-outline" size={13} color={theme.textDim} />
-              <Text style={[styles.watermarkText, { color: theme.textDim }]}>Habit Tracker • مسار العادات المستمر</Text>
+              <Text style={[styles.watermarkText, { color: theme.textDim }]}>Habit Flow • مسار العادات المستمر</Text>
             </View>
           </View>
 
           {/* Action Buttons */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity onPress={handleNativeShare} style={[styles.primaryShareBtn, { backgroundColor: habit.color }]}>
+            <TouchableOpacity onPress={handleShareSystem} style={[styles.primaryShareBtn, { backgroundColor: habit.color }]}>
               <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.primaryShareText}>مشاركة البطاقة 📤</Text>
+              <Text style={styles.primaryShareText}>مشاركة البطاقة</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleCopy}
+              onPress={handleCopySummary}
               style={[styles.secondaryCopyBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
               <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? '#10B981' : theme.text} />
@@ -198,7 +199,7 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </BlurOverlay>
     </Modal>
   );
 };

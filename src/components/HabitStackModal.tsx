@@ -15,6 +15,7 @@ import { Habit, HabitLogs, HabitStack } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { getTodayString } from '../utils/dateUtils';
 import { ModalHeader } from './ModalHeader';
+import { BlurOverlay } from './common/BlurOverlay';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
 import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
@@ -88,16 +89,18 @@ export const HabitStackModal: React.FC<HabitStackModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
+      <BlurOverlay theme={theme} style={styles.overlay}>
         <View
           style={[
             styles.card,
             {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.border,
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
+              shadowOpacity: theme.text === '#FFFFFF' ? 0.35 : 0.12,
+              shadowRadius: 24,
+              elevation: 12,
             },
-            Platform.OS === 'web' && ({ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' } as any),
           ]}
         >
           {/* Header */}
@@ -114,7 +117,7 @@ export const HabitStackModal: React.FC<HabitStackModalProps> = ({
           <View style={[styles.formulaBanner, { backgroundColor: 'rgba(124, 131, 253, 0.1)', borderColor: 'rgba(124, 131, 253, 0.3)' }]}>
             <Text style={[styles.formulaTitle, { color: '#7C83FD' }]}>قاعدة تراكم العادات (Habit Stacking):</Text>
             <Text style={[styles.formulaText, { color: theme.text }]}>
-              "بعد [العادة الراسخة] 👈 سأقوم فوراً بـ [العادة الجديدة] 👈 مكافأة سريعة 🎉"
+              "بعد [العادة الراسخة] → سأقوم فوراً بـ [العادة الجديدة] → مكافأة فورية"
             </Text>
           </View>
 
@@ -169,15 +172,18 @@ export const HabitStackModal: React.FC<HabitStackModalProps> = ({
                         </View>
 
                         {/* Cue line */}
-                        <Text style={[styles.cueLineText, { color: theme.textDim }]}>
-                          🔗 {stack.cueText || 'بعد إنجاز:'}
-                        </Text>
+                        <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                          <Ionicons name="link-outline" size={13} color={theme.textDim} />
+                          <Text style={[styles.cueLineText, { color: theme.textDim, marginBottom: 0 }]}>
+                            {stack.cueText || 'بعد إنجاز:'}
+                          </Text>
+                        </View>
 
                         {/* Anchor Habit */}
                         {anchor && (
                           <TouchableOpacity
                             activeOpacity={0.7}
-                            onPress={() => onToggleHabit(anchor.id)}
+                            onPress={() => onToggleHabit?.(anchor.id)}
                             style={[
                               styles.stepPill,
                               {
@@ -218,7 +224,7 @@ export const HabitStackModal: React.FC<HabitStackModalProps> = ({
                             <TouchableOpacity
                               key={fHabit.id}
                               activeOpacity={0.7}
-                              onPress={() => onToggleHabit(fHabit.id)}
+                              onPress={() => onToggleHabit?.(fHabit.id)}
                               style={[
                                 styles.stepPill,
                                 {
@@ -259,7 +265,7 @@ export const HabitStackModal: React.FC<HabitStackModalProps> = ({
                 <TextInput
                   value={stackTitle}
                   onChangeText={setStackTitle}
-                  placeholder="مثال: روتين شحن الصباح ☀️"
+                  placeholder="مثال: روتين شحن الصباح"
                   placeholderTextColor={theme.textDim}
                   style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
                 />
@@ -345,7 +351,7 @@ export const HabitStackModal: React.FC<HabitStackModalProps> = ({
             <View style={{ height: 20 }} />
           </ScrollView>
         </View>
-      </View>
+      </BlurOverlay>
     </Modal>
   );
 };

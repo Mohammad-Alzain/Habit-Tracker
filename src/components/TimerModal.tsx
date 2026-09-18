@@ -11,15 +11,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { Habit } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { ModalHeader } from './ModalHeader';
-import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
+import { FrostedDialogModal } from './common/FrostedDialogModal';
+import { LiquidGlassView } from './common/LiquidGlassView';
 
 import { soundService } from '../services/soundService';
 import { hapticService } from '../services/hapticService';
+import { t, isRTL, AppLanguage } from '../utils/i18n';
+import { useCountdownTimer } from '../features/timer/hooks/useCountdownTimer';
+import { timerBackgroundService } from '../services/timerBackgroundService';
 
 interface TimerModalProps {
   visible: boolean;
   habit: Habit | null;
   theme: ThemeColors;
+  language?: AppLanguage;
   onClose: () => void;
   onFinishSession: (habitId: string, minutesCompleted: number) => void;
 }
@@ -28,117 +33,97 @@ export const TimerModal: React.FC<TimerModalProps> = ({
   visible,
   habit,
   theme,
+  language = 'ar',
   onClose,
   onFinishSession,
 }) => {
-  if (!habit) return null;
-
-  const targetMinutes = habit.targetValue || 15;
+  const rtl = isRTL(language);
+  const targetMinutes = habit?.targetValue || 15;
   const initialSeconds = targetMinutes * 60;
 
-  const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
-  const [isRunning, setIsRunning] = useState(false);
-  const intervalRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (visible) {
-      setSecondsLeft(initialSeconds);
-      setIsRunning(false);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [visible, habit]);
-
-  useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setSecondsLeft((prev) => {
-          if (prev <= 1) {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            setIsRunning(false);
-            soundService.playComplete();
-            hapticService.success();
-            onFinishSession(habit.id, targetMinutes);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isRunning, habit, targetMinutes]);
-
-  const toggleRun = () => {
-    hapticService.light();
-    setIsRunning(!isRunning);
-  };
+  const {
+    secondsLeft,
+    isRunning,
+    formattedTime,
+    progressPercent,
+    toggleRun,
+    reset,
+    addMinutes,
+  } = useCountdownTimer({
+    initialMinutes: targetMinutes,
+    onStart: (secs) => {
+      if (!habit) return;
+      timerBackgroundService.startSession({
+        habitId: habit.id,
+        isSubTask: false,
+        title: habit.name,
+        subtitle: t('timerTitle', language),
+        durationMinutes: targetMinutes,
+        secondsRemaining: secs,
+      });
+    },
+    onPause: (secs) => {
+      timerBackgroundService.pauseSession(secs);
+    },
+    onReset: () => {
+      timerBackgroundService.clearSession();
+    },
+    onFinished: () => {
+      timerBackgroundService.clearSession();
+      if (habit) {
+        onFinishSession(habit.id, targetMinutes);
+      }
+      onClose();
+    },
+  });
 
   const handleReset = () => {
-    hapticService.light();
-    setIsRunning(false);
-    setSecondsLeft(initialSeconds);
+    reset();
   };
 
   const handleAddMinutes = (mins: number) => {
-    hapticService.light();
-    setSecondsLeft((prev) => Math.max(0, prev + mins * 60));
+    addMinutes(mins);
   };
 
   const handleComplete = () => {
+    timerBackgroundService.clearSession();
     soundService.playComplete();
     hapticService.success();
     const elapsedSeconds = Math.max(60, initialSeconds - secondsLeft);
     const elapsedMins = Math.max(1, Math.round(elapsedSeconds / 60));
-    onFinishSession(habit.id, elapsedMins);
+    if (habit) {
+      onFinishSession(habit.id, elapsedMins);
+    }
     onClose();
   };
 
   const handleLogFullSession = () => {
+    timerBackgroundService.clearSession();
     soundService.playComplete();
     hapticService.success();
-    onFinishSession(habit.id, targetMinutes);
+    if (habit) {
+      onFinishSession(habit.id, targetMinutes);
+    }
     onClose();
   };
 
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = secondsLeft % 60;
-  const progressPercent = Math.round(((initialSeconds - secondsLeft) / initialSeconds) * 100);
+  if (!habit) return null;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: 'rgba(5, 8, 14, 0.85)' }]}>
-        <View
-          style={[
-            styles.container,
-            {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.cardBorder,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: 0.35,
-              shadowRadius: 20,
-              elevation: 14,
-            },
-          ]}
-        >
+    <FrostedDialogModal visible={visible && !!habit} theme={theme} onClose={onClose}>
+      <LiquidGlassView theme={theme} style={styles.container}>
           {/* Header */}
           <ModalHeader
-            title="مؤقت التركيز"
+            title={t('timerTitle', language)}
             icon="timer-outline"
             iconColor={habit.color}
             theme={theme}
-            isRTL={true}
+            isRTL={rtl}
             onClose={onClose}
           />
 
           {/* Habit Info */}
-          <View style={styles.habitBadge}>
+          <View style={[styles.habitBadge, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <View
               style={[
                 styles.iconBox,
@@ -174,42 +159,44 @@ export const TimerModal: React.FC<TimerModalProps> = ({
                 ]}
               >
                 <Text style={[styles.timeDigits, { color: theme.text }]}>
-                  {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                  {formattedTime}
                 </Text>
                 <Text style={[styles.progressText, { color: habit.color }]}>
-                  {progressPercent}% مكتمل
+                  {Math.round(progressPercent)}% {t('timerCompleted', language)}
                 </Text>
               </View>
             </View>
           </View>
 
           {/* Quick Add Minutes Row */}
-          <View style={styles.quickAddRow}>
+          <View style={[styles.quickAddRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
               onPress={() => handleAddMinutes(5)}
               style={[styles.quickAddChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
-              <Text style={[styles.quickAddText, { color: theme.text }]}>+5 د</Text>
+              <Text style={[styles.quickAddText, { color: theme.text }]}>+5 {t('minShort', language)}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => handleAddMinutes(10)}
               style={[styles.quickAddChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
             >
-              <Text style={[styles.quickAddText, { color: theme.text }]}>+10 د</Text>
+              <Text style={[styles.quickAddText, { color: theme.text }]}>+10 {t('minShort', language)}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleLogFullSession}
-              style={[styles.quickAddChip, { backgroundColor: `${habit.color}20`, borderColor: habit.color }]}
+              style={[styles.quickAddChip, { backgroundColor: `${habit.color}20`, borderColor: habit.color, flexDirection: rtl ? 'row-reverse' : 'row' }]}
             >
               <Ionicons name="sparkles" size={12} color={habit.color} />
-              <Text style={[styles.quickAddText, { color: habit.color }]}>تسجيل {targetMinutes}د كاملة 🎯</Text>
+              <Text style={[styles.quickAddText, { color: habit.color }]}>
+                {language === 'ar' ? `تسجيل ${targetMinutes}د كاملة` : `Log full ${targetMinutes}m`}
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Controls */}
-          <View style={styles.controlsRow}>
+          <View style={[styles.controlsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <TouchableOpacity
               onPress={handleReset}
               activeOpacity={0.7}
@@ -248,24 +235,15 @@ export const TimerModal: React.FC<TimerModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.hintText, { color: theme.textDim }]}>
-            اضغط علامة الصح ✅ لتسجيل الدقائق المنقضية، أو زر التسجيل الكامل لإتمام الهدف فوراً
+          <Text style={[styles.hintText, { color: theme.textDim, textAlign: 'center' }]}>
+            {t('timerHint', language)}
           </Text>
-        </View>
-      </View>
-    </Modal>
+        </LiquidGlassView>
+    </FrostedDialogModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: DIALOG_SAFE_TOP,
-    paddingBottom: DIALOG_SAFE_BOTTOM,
-    paddingHorizontal: 20,
-  },
   container: {
     width: '100%',
     maxWidth: 380,

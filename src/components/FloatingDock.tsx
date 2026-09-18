@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ViewMode } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { hapticService } from '../services/hapticService';
+import { soundService } from '../services/soundService';
 
 interface FloatingDockProps {
   viewMode: ViewMode;
@@ -17,9 +18,9 @@ const MODES: { id: ViewMode; icon: string; size: number }[] = [
   { id: 'compact', icon: 'calendar-outline', size: 19 },
 ];
 
-const BUTTON_WIDTH = 46;
+const BUTTON_WIDTH = 48;
 const BUTTON_GAP = 6;
-const STEP_DISTANCE = BUTTON_WIDTH + BUTTON_GAP; // 52px
+const STEP_DISTANCE = BUTTON_WIDTH + BUTTON_GAP; // 54px
 
 const FloatingDockComponent: React.FC<FloatingDockProps> = ({
   viewMode,
@@ -28,28 +29,30 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
 }) => {
   const activeIndex = MODES.findIndex((m) => m.id === viewMode);
   const slideAnim = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const bounceScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const targetIdx = MODES.findIndex((m) => m.id === viewMode);
     if (targetIdx >= 0) {
       Animated.parallel([
+        // Smooth gliding spring with physics
         Animated.spring(slideAnim, {
           toValue: targetIdx,
           friction: 7,
-          tension: 65,
+          tension: 68,
           useNativeDriver: true,
         }),
+        // Subtle press-and-settle pulse
         Animated.sequence([
-          Animated.timing(scaleAnim, {
-            toValue: 0.92,
-            duration: 80,
+          Animated.timing(bounceScale, {
+            toValue: 0.94,
+            duration: 90,
             useNativeDriver: true,
           }),
-          Animated.spring(scaleAnim, {
+          Animated.spring(bounceScale, {
             toValue: 1,
-            friction: 5,
-            tension: 80,
+            friction: 4,
+            tension: 85,
             useNativeDriver: true,
           }),
         ]),
@@ -57,17 +60,32 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
     }
   }, [viewMode]);
 
+  // Pixel-perfect translation along the dock
   const translateX = slideAnim.interpolate({
     inputRange: [0, 1, 2],
     outputRange: [0, STEP_DISTANCE, STEP_DISTANCE * 2],
   });
 
+  // "Walking/Gliding" stretch effect: pill organically elongates during transit
+  const stretchX = slideAnim.interpolate({
+    inputRange: [0, 0.5, 1, 1.5, 2],
+    outputRange: [1, 1.18, 1, 1.18, 1],
+  });
+
+  const stretchY = slideAnim.interpolate({
+    inputRange: [0, 0.5, 1, 1.5, 2],
+    outputRange: [1, 0.90, 1, 0.90, 1],
+  });
+
   const handleSelect = (mode: ViewMode) => {
     if (mode !== viewMode) {
-      hapticService.light();
+      hapticService.medium();
+      soundService.playTap();
       onChangeViewMode(mode);
     }
   };
+
+  const isDark = theme.background === '#0B0E14' || theme.background === '#0E1015' || theme.background.startsWith('#0');
 
   return (
     <View style={styles.outerContainer} pointerEvents="box-none">
@@ -75,34 +93,39 @@ const FloatingDockComponent: React.FC<FloatingDockProps> = ({
         style={[
           styles.dockBar,
           {
-            backgroundColor: theme.glassBg || (theme.background === '#0E1015' ? 'rgba(20, 24, 34, 0.75)' : 'rgba(255, 255, 255, 0.82)'),
-            borderColor: theme.glassBorder || 'rgba(255, 255, 255, 0.12)',
-            borderTopColor: theme.glassSpecular || 'rgba(255, 255, 255, 0.28)',
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
           },
-          Platform.OS === 'web' && ({ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any),
         ]}
       >
-        {/* Animated Sliding Glass Capsule / Circle */}
+        {/* Walking & Gliding Capsule Indicator */}
         <Animated.View
           style={[
             styles.slidingPill,
             {
-              backgroundColor: theme.surface,
-              borderColor: theme.glassBorder || 'rgba(255, 255, 255, 0.16)',
-              transform: [{ translateX }, { scale: scaleAnim }],
+              backgroundColor: theme.card,
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+              shadowColor: isDark ? theme.primary : '#000',
+              transform: [
+                { translateX },
+                { scaleX: stretchX },
+                { scaleY: stretchY },
+                { scale: bounceScale },
+              ],
             },
           ]}
         />
 
-        {/* Action Buttons */}
+        {/* Action Buttons (Fixed LTR layout ensures stable horizontal coordinates) */}
         {MODES.map((m) => {
           const isSelected = viewMode === m.id;
           return (
             <TouchableOpacity
               key={m.id}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
               onPress={() => handleSelect(m.id)}
               style={styles.dockBtn}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
               <Ionicons
                 name={m.icon as any}
@@ -124,39 +147,41 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: Platform.OS === 'ios' ? 24 : 16,
+    bottom: Platform.OS === 'ios' ? 26 : 18,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 99,
   },
   dockBar: {
     position: 'relative',
+    direction: 'ltr',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 50,
-    borderRadius: 25,
+    height: 52,
+    borderRadius: 26,
     paddingHorizontal: 6,
     borderWidth: 1.2,
-    gap: 6,
+    gap: BUTTON_GAP,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
+    elevation: 12,
   },
   slidingPill: {
     position: 'absolute',
     left: 6,
-    top: 5,
+    top: 6,
     width: BUTTON_WIDTH,
     height: 38,
     borderRadius: 19,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    borderTopWidth: 1.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
+    elevation: 4,
   },
   dockBtn: {
     width: BUTTON_WIDTH,

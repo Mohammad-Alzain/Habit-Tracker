@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,19 +7,30 @@ import {
   ScrollView,
   Platform,
   LayoutAnimation,
+  Animated,
+  UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Habit, HabitCategory, HabitLogs, ViewMode } from '../types/habit';
+import { Habit, HabitCategory, HabitLogs, ViewMode, DayOfWeek } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { HabitKitTile } from '../components/HabitKitTile';
 import { ChecklistHabitCard } from '../components/ChecklistHabitCard';
 import { CompactWeeklyCard } from '../components/CompactWeeklyCard';
 import { HabitKitHeader } from '../components/HabitKitHeader';
+import { SlipReflectionModal } from '../components/SlipReflectionModal';
 import { calculateHabitStats } from '../utils/streakUtils';
-import { getTodayString } from '../utils/dateUtils';
+import { getTodayString, parseISODate } from '../utils/dateUtils';
+import { isHabitScheduledForDay } from '../utils/habitScheduleUtils';
 import { soundService } from '../services/soundService';
 import { hapticService } from '../services/hapticService';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
+import * as Clipboard from 'expo-clipboard';
+import { getDailyQuote, getRandomQuote, MotivationalQuote } from '../constants/motivationalQuotes';
+
+const isNewArch = Boolean((globalThis as any).nativeFabricUIManager || (globalThis as any).RN$Bridgeless);
+if (Platform.OS === 'android' && !isNewArch && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface HabitsScreenProps {
   habits: Habit[];
@@ -36,10 +47,15 @@ interface HabitsScreenProps {
   onAddNew: () => void;
   onOpenSettings: () => void;
   onOpenAnalytics: () => void;
+  onOpenRoadmap?: () => void;
   onOpenWidgets?: () => void;
   onOpenTemplates?: () => void;
   onOpenMilestones?: () => void;
   onOpenStacks?: () => void;
+  onOpenReorder?: () => void;
+  onReorderHabits?: (reorderedHabits: Habit[]) => void;
+  onLogCraving?: (habitId: string) => void;
+  onLogSlip?: (habitId: string, dateStr: string, reason: string) => void;
 }
 
 export const HabitsScreen: React.FC<HabitsScreenProps> = ({
@@ -57,28 +73,199 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   onAddNew,
   onOpenSettings,
   onOpenAnalytics,
+  onOpenRoadmap,
   onOpenWidgets,
   onOpenTemplates,
   onOpenMilestones,
   onOpenStacks,
+  onOpenReorder,
+  onReorderHabits,
+  onLogCraving,
+  onLogSlip,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<'all' | HabitCategory>('all');
   const [quickFilter, setQuickFilter] = useState<'all' | 'pending' | 'completed' | 'streak'>('all');
   const [showFilters, setShowFilters] = useState(true);
   const [showTwoDayBanner, setShowTwoDayBanner] = useState(true);
+  const [slipModalHabit, setSlipModalHabit] = useState<Habit | null>(null);
+  const [currentQuote, setCurrentQuote] = useState<MotivationalQuote>(() => getDailyQuote());
+  const [showQuoteBanner, setShowQuoteBanner] = useState(true);
+  const [copiedQuote, setCopiedQuote] = useState(false);
   const rtl = isRTL(language);
 
-  const todayStr = getTodayString();
-  const activeHabits = habits.filter((h) => !h.archived);
+  const handleShuffleQuote = () => {
+    hapticService.light();
+    setCurrentQuote(getRandomQuote());
+  };
+
+  const handleCopyQuote = async () => {
+    hapticService.success();
+    await Clipboard.setStringAsync(`"${currentQuote.text}" - ${currentQuote.author || 'حكمة'}`);
+    setCopiedQuote(true);
+    setTimeout(() => setCopiedQuote(false), 2000);
+  };
+
+  // Smooth filter collapse animation
+  const filterAnim = useRef(new Animated.Value(showFilters ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(filterAnim, {
+      toValue: showFilters ? 1 : 0,
+      friction: 8,
+      tension: 50,
+      useNativeDriver: false,
+    }).start();
+  }, [showFilters]);
+
+  // Direct DnD in-place reordering state
+  const [draggingHabitId, setDraggingHabitId] = useState<string | null>(null);
+  const isDraggingRef = useRef(false);
+  const justFinishedDrag = useRef(false);
+  const longPressTimer = useRef<any>(null);
+  const touchStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const dragScale = useRef(new Animated.Value(1)).current;
+  const dragTranslate = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+
+  const [localHabits, setLocalHabits] = useState<Habit[]>([]);
+
+  // Sync local habits when habits prop updates and user is not currently dragging
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setLocalHabits(habits.filter((h) => !h.archived));
+    }
+  }, [habits]);
+
+  const handleTouchStart = (habitId: string, pageX: number, pageY: number) => {
+    touchStartPos.current = { x: pageX, y: pageY };
+    dragTranslate.setValue({ x: 0, y: 0 });
+
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+
+    longPressTimer.current = setTimeout(() => {
+      isDraggingRef.current = true;
+      setDraggingHabitId(habitId);
+      hapticService.medium();
+      soundService.playTap();
+
+      Animated.spring(dragScale, {
+        toValue: 1.06,
+        friction: 5,
+        tension: 60,
+        useNativeDriver: true,
+      }).start();
+    }, 320);
+  };
+
+  const handleTouchMove = (habitId: string, pageX: number, pageY: number) => {
+    const deltaX = pageX - touchStartPos.current.x;
+    const deltaY = pageY - touchStartPos.current.y;
+    const dist = Math.hypot(deltaX, deltaY);
+
+    if (!isDraggingRef.current) {
+      // If moved more than 10px before long-press activates, cancel timer (user is scrolling)
+      if (dist > 10 && longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      return;
+    }
+
+    // User is dragging! Move card with finger
+    dragTranslate.setValue({ x: deltaX * 0.4, y: deltaY });
+
+    const currentIndex = localHabits.findIndex((h) => h.id === habitId);
+    if (currentIndex === -1) return;
+
+    let targetIndex = currentIndex;
+
+    if (viewMode === 'heatmap') {
+      // 2-Column Grid
+      const THRESHOLD_Y = 90;
+      const THRESHOLD_X = 65;
+
+      if (deltaY > THRESHOLD_Y && currentIndex + 2 < localHabits.length) {
+        targetIndex = currentIndex + 2;
+        touchStartPos.current.y += THRESHOLD_Y;
+      } else if (deltaY < -THRESHOLD_Y && currentIndex - 2 >= 0) {
+        targetIndex = currentIndex - 2;
+        touchStartPos.current.y -= THRESHOLD_Y;
+      } else if (rtl ? deltaX < -THRESHOLD_X : deltaX > THRESHOLD_X) {
+        if (currentIndex % 2 === 0 && currentIndex + 1 < localHabits.length) {
+          targetIndex = currentIndex + 1;
+          touchStartPos.current.x += (rtl ? -THRESHOLD_X : THRESHOLD_X);
+        }
+      } else if (rtl ? deltaX > THRESHOLD_X : deltaX < -THRESHOLD_X) {
+        if (currentIndex % 2 === 1 && currentIndex - 1 >= 0) {
+          targetIndex = currentIndex - 1;
+          touchStartPos.current.x += (rtl ? THRESHOLD_X : -THRESHOLD_X);
+        }
+      }
+    } else {
+      // 1-Column List
+      const THRESHOLD_Y = 55;
+      if (deltaY > THRESHOLD_Y && currentIndex + 1 < localHabits.length) {
+        targetIndex = currentIndex + 1;
+        touchStartPos.current.y += THRESHOLD_Y;
+      } else if (deltaY < -THRESHOLD_Y && currentIndex - 1 >= 0) {
+        targetIndex = currentIndex - 1;
+        touchStartPos.current.y -= THRESHOLD_Y;
+      }
+    }
+
+    if (targetIndex !== currentIndex) {
+      try {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      } catch {}
+      hapticService.selection();
+      setLocalHabits((prev) => {
+        const updated = [...prev];
+        const [moved] = updated.splice(currentIndex, 1);
+        updated.splice(targetIndex, 0, moved);
+        return updated;
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      justFinishedDrag.current = true;
+      setTimeout(() => {
+        justFinishedDrag.current = false;
+      }, 400);
+
+      Animated.parallel([
+        Animated.spring(dragScale, { toValue: 1, friction: 6, tension: 50, useNativeDriver: true }),
+        Animated.spring(dragTranslate, { toValue: { x: 0, y: 0 }, friction: 6, tension: 50, useNativeDriver: true }),
+      ]).start(() => {
+        setDraggingHabitId(null);
+      });
+
+      hapticService.success();
+      soundService.playComplete();
+
+      if (onReorderHabits) {
+        onReorderHabits(localHabits);
+      }
+    }
+  };
 
   const handleToggleFilterVisibility = () => {
-    try {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    } catch {
-      // Safe fallback
-    }
+    hapticService.selection();
+    soundService.playTap();
     setShowFilters((prev) => !prev);
   };
+
+  const todayStr = getTodayString();
+  const activeHabits = localHabits.length > 0 ? localHabits : habits.filter((h) => !h.archived);
 
   const handleToggleTodayWithEffects = React.useCallback((habitId: string) => {
     soundService.playComplete();
@@ -133,8 +320,12 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     return selectedCategory === 'all' || h.category === selectedCategory;
   });
 
+  const todayDayOfWeek = parseISODate(todayStr).getDay() as DayOfWeek;
+
   if (quickFilter === 'pending') {
     displayHabits = displayHabits.filter((h) => {
+      // Unscheduled habits for today are not pending today
+      if (!isHabitScheduledForDay(h, todayDayOfWeek)) return false;
       const threshold = h.targetValue || h.targetPerDay || 1;
       return (logs[h.id]?.[todayStr] || 0) < threshold;
     });
@@ -152,7 +343,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Top Header */}
       <HabitKitHeader
         theme={theme}
@@ -162,16 +353,41 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         onOpenSettings={onOpenSettings}
         onOpenAnalytics={onOpenAnalytics}
         onAddNew={onAddNew}
+        onOpenRoadmap={onOpenRoadmap}
         onOpenWidgets={onOpenWidgets}
         onOpenTemplates={onOpenTemplates}
         onOpenMilestones={onOpenMilestones}
         onOpenStacks={onOpenStacks}
+        onOpenReorder={onOpenReorder}
         onToggleFilter={handleToggleFilterVisibility}
         isFilterHidden={!showFilters}
       />
 
       {/* Quick Filters Bar (Collapsible with smooth animation) */}
-      {showFilters && (
+      <Animated.View
+        style={{
+          maxHeight: filterAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 56],
+          }),
+          opacity: filterAnim,
+          transform: [
+            {
+              translateY: filterAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-12, 0],
+              }),
+            },
+            {
+              scale: filterAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.95, 1],
+              }),
+            },
+          ],
+          overflow: 'hidden',
+        }}
+      >
         <View style={[styles.quickFilterBar, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
           {[
             { id: 'all', label: t('all', language) },
@@ -183,8 +399,10 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
             return (
               <TouchableOpacity
                 key={f.id}
+                activeOpacity={0.75}
                 onPress={() => {
                   hapticService.selection();
+                  soundService.playTap();
                   setQuickFilter(f.id as any);
                 }}
                 style={[
@@ -195,29 +413,135 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
                   },
                 ]}
               >
-                <Text style={[styles.quickFilterText, { color: isSel ? '#FFFFFF' : theme.textDim }]}>
+                <Text style={[styles.quickFilterText, { color: isSel ? '#FFFFFF' : theme.textDim, fontWeight: isSel ? '800' : '600' }]}>
                   {f.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
-      )}
+      </Animated.View>
 
       {/* Main Content Area */}
       <ScrollView
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!draggingHabitId}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Floating In-Place Drag Reorder Indicator */}
+        {draggingHabitId && (
+          <Animated.View
+            style={[
+              styles.floatingDragBanner,
+              {
+                backgroundColor: theme.card,
+                borderColor: '#7C83FD',
+                flexDirection: rtl ? 'row-reverse' : 'row',
+              },
+            ]}
+          >
+            <Ionicons name="swap-vertical" size={16} color="#7C83FD" />
+            <Text style={[styles.floatingDragText, { color: theme.text }]}>
+              {t('dragToReorder', language)}
+            </Text>
+            <View style={styles.dragPillIndicator}>
+              <Text style={styles.dragPillIndicatorText}>
+                {t('releaseToDrop', language)}
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Daily Motivation Card */}
+        {showQuoteBanner && (
+          <View
+            style={[
+              styles.quoteCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.cardBorder,
+                shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: theme.text === '#FFFFFF' ? 0.30 : 0.08,
+                shadowRadius: 20,
+                elevation: 6,
+              },
+            ]}
+          >
+            {/* Header */}
+            <View style={[styles.quoteCardHeader, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.quoteTitleRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <Ionicons name="sparkles" size={15} color="#F1C40F" />
+                <Text style={[styles.quoteSectionTitle, { color: theme.text }]}>
+                  {language === 'ar' ? 'إلهام اليوم' : 'Daily Inspiration'}
+                </Text>
+              </View>
+
+              <View style={[styles.quoteActionsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleShuffleQuote}
+                  style={[styles.quoteActionBtn, { backgroundColor: theme.inputBg || theme.surface }]}
+                  accessibilityLabel="اقتباس آخر"
+                >
+                  <Ionicons name="dice-outline" size={14} color={theme.textMuted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleCopyQuote}
+                  style={[styles.quoteActionBtn, { backgroundColor: theme.inputBg || theme.surface }]}
+                  accessibilityLabel="نسخ الاقتباس"
+                >
+                  <Ionicons
+                    name={copiedQuote ? 'checkmark' : 'copy-outline'}
+                    size={14}
+                    color={copiedQuote ? '#2ECC71' : theme.textMuted}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setShowQuoteBanner(false)}
+                  style={[styles.quoteActionBtn, { backgroundColor: theme.inputBg || theme.surface }]}
+                >
+                  <Ionicons name="close" size={14} color={theme.textDim} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Quote Body */}
+            <Text
+              style={[
+                styles.quoteBodyText,
+                { color: theme.text, textAlign: rtl ? 'right' : 'left' },
+              ]}
+            >
+              "{currentQuote.text}"
+            </Text>
+
+            {/* Author */}
+            {!!currentQuote.author && (
+              <Text
+                style={[
+                  styles.quoteAuthorText,
+                  { color: theme.textDim, textAlign: rtl ? 'left' : 'right' },
+                ]}
+              >
+                — {currentQuote.author}
+              </Text>
+            )}
+          </View>
+        )}
+
         {/* Smart Daily Focus Summary Card */}
         {totalActiveCount > 0 && (
           <View
             style={[
               styles.dailySummaryCard,
               {
-                backgroundColor: theme.glassSurface || theme.card,
-                borderColor: theme.glassBorder || theme.cardBorder,
-                borderTopColor: theme.glassSpecular || 'rgba(255,255,255,0.24)',
+                backgroundColor: theme.card,
+                borderColor: theme.cardBorder,
               },
             ]}
           >
@@ -268,7 +592,7 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
                 <Ionicons name="close" size={18} color={theme.textDim} />
               </TouchableOpacity>
               <View style={styles.atRiskTitleWrap}>
-                <Text style={styles.atRiskTitle}>قاعدة عدم الانقطاع مرتين ⚠️</Text>
+                <Text style={styles.atRiskTitle}>قاعدة عدم الانقطاع مرتين</Text>
                 <Ionicons name="flame" size={16} color="#E74C3C" />
               </View>
             </View>
@@ -297,58 +621,84 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         ) : (
           <View style={viewMode === 'heatmap' ? styles.gridRowWrap : styles.listColWrap}>
             {displayHabits.map((habit) => {
-              if (viewMode === 'checklist') {
-                return (
-                  <ChecklistHabitCard
-                    key={habit.id}
-                    habit={habit}
-                    logs={logs}
-                    theme={theme}
-                    onToggleToday={handleToggleTodayWithEffects}
-                    onAdjustNumeric={handleAdjustNumericWithEffects}
-                    onStartTimer={onStartTimer}
-                    onPressCard={(h) => {
-                      hapticService.light();
-                      onPressHabit(h);
-                    }}
-                    onDeleteHabit={onDeleteHabit}
-                  />
-                );
-              }
+              const isBeingDragged = draggingHabitId === habit.id;
 
-              if (viewMode === 'compact') {
-                return (
-                  <CompactWeeklyCard
-                    key={habit.id}
-                    habit={habit}
-                    logs={logs}
-                    theme={theme}
-                    onToggleDate={handleTogglePastDateWithEffects}
-                    onPressCard={(h) => {
-                      hapticService.light();
-                      onPressHabit(h);
-                    }}
-                    onDeleteHabit={onDeleteHabit}
-                  />
-                );
-              }
-
-              // Default: 2-Column Grid matching HabitKit
               return (
-                <HabitKitTile
+                <Animated.View
                   key={habit.id}
-                  habit={habit}
-                  logs={logs}
-                  theme={theme}
-                  onToggleToday={handleToggleTodayWithEffects}
-                  onStartTimer={onStartTimer}
-                  onAdjustNumeric={handleAdjustNumericWithEffects}
-                  onPressCard={(h) => {
-                    hapticService.light();
-                    onPressHabit(h);
-                  }}
-                  onDeleteHabit={onDeleteHabit}
-                />
+                  style={[
+                    viewMode === 'heatmap' ? styles.tileWrapper : styles.cardWrapper,
+                    isBeingDragged && {
+                      transform: [
+                        { scale: dragScale },
+                        { translateX: dragTranslate.x },
+                        { translateY: dragTranslate.y },
+                      ],
+                      zIndex: 9999,
+                      elevation: 25,
+                      shadowColor: habit.color || '#7C83FD',
+                      shadowOffset: { width: 0, height: 12 },
+                      shadowOpacity: 0.55,
+                      shadowRadius: 18,
+                    },
+                  ]}
+                  onTouchStart={(e) => handleTouchStart(habit.id, e.nativeEvent.pageX, e.nativeEvent.pageY)}
+                  onTouchMove={(e) => handleTouchMove(habit.id, e.nativeEvent.pageX, e.nativeEvent.pageY)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchEnd}
+                >
+                  {viewMode === 'checklist' ? (
+                    <ChecklistHabitCard
+                      habit={habit}
+                      logs={logs}
+                      theme={theme}
+                      style={{ width: '100%', marginBottom: 0 }}
+                      onToggleToday={handleToggleTodayWithEffects}
+                      onAdjustNumeric={handleAdjustNumericWithEffects}
+                      onStartTimer={onStartTimer}
+                      onPressCard={(h) => {
+                        if (isDraggingRef.current || justFinishedDrag.current) return;
+                        hapticService.light();
+                        onPressHabit(h);
+                      }}
+                      onDeleteHabit={onDeleteHabit}
+                      onLogCraving={onLogCraving}
+                      onOpenSlipModal={setSlipModalHabit}
+                    />
+                  ) : viewMode === 'compact' ? (
+                    <CompactWeeklyCard
+                      habit={habit}
+                      logs={logs}
+                      theme={theme}
+                      style={{ width: '100%', marginBottom: 0 }}
+                      onToggleDate={handleTogglePastDateWithEffects}
+                      onPressCard={(h) => {
+                        if (isDraggingRef.current || justFinishedDrag.current) return;
+                        hapticService.light();
+                        onPressHabit(h);
+                      }}
+                      onDeleteHabit={onDeleteHabit}
+                    />
+                  ) : (
+                    <HabitKitTile
+                      habit={habit}
+                      logs={logs}
+                      theme={theme}
+                      style={{ width: '100%', marginBottom: 0 }}
+                      onToggleToday={handleToggleTodayWithEffects}
+                      onStartTimer={onStartTimer}
+                      onAdjustNumeric={handleAdjustNumericWithEffects}
+                      onPressCard={(h) => {
+                        if (isDraggingRef.current || justFinishedDrag.current) return;
+                        hapticService.light();
+                        onPressHabit(h);
+                      }}
+                      onDeleteHabit={onDeleteHabit}
+                      onLogCraving={onLogCraving}
+                      onOpenSlipModal={setSlipModalHabit}
+                    />
+                  )}
+                </Animated.View>
               );
             })}
           </View>
@@ -356,6 +706,19 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Compassionate Slip Reflection Modal for Quit Habits */}
+      <SlipReflectionModal
+        visible={!!slipModalHabit}
+        habit={slipModalHabit}
+        theme={theme}
+        language={language}
+        onClose={() => setSlipModalHabit(null)}
+        onConfirmSlip={(habitId, dateStr, reason) => {
+          onLogSlip?.(habitId, dateStr, reason);
+          setSlipModalHabit(null);
+        }}
+      />
     </View>
   );
 };
@@ -442,6 +805,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
   },
+  quoteCard: {
+    borderRadius: 18,
+    borderWidth: 1.2,
+    padding: 14,
+    marginBottom: 12,
+  },
+  quoteCardHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  quoteTitleRow: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  quoteSectionTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  quoteActionsRow: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  quoteActionBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quoteBodyText: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontWeight: '500',
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  quoteAuthorText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   dailySummaryCard: {
     borderRadius: 18,
     borderWidth: 1.2,
@@ -500,5 +906,43 @@ const styles = StyleSheet.create({
   summaryFill: {
     height: '100%',
     borderRadius: 2,
+  },
+  tileWrapper: {
+    width: '48%',
+    marginBottom: 12,
+  },
+  cardWrapper: {
+    width: '100%',
+    marginBottom: 10,
+  },
+  floatingDragBanner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.2,
+    borderRadius: 20,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 14,
+    shadowColor: '#7C83FD',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  floatingDragText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  dragPillIndicator: {
+    backgroundColor: '#7C83FD',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  dragPillIndicatorText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '800',
   },
 });

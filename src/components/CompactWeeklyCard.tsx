@@ -1,15 +1,17 @@
-import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { memo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { calculateHabitStats } from '../utils/streakUtils';
 import { getLastNDays, getTodayString, parseISODate, getArabicDayShort } from '../utils/dateUtils';
+import { ConfirmActionModal } from './common/ConfirmActionModal';
 
 interface CompactWeeklyCardProps {
   habit: Habit;
   logs: HabitLogs;
   theme: ThemeColors;
+  style?: any;
   onToggleDate: (habitId: string, dateStr: string) => void;
   onPressCard: (habit: Habit) => void;
   onDeleteHabit?: (habitId: string) => void;
@@ -19,6 +21,7 @@ const CompactWeeklyCardComponent: React.FC<CompactWeeklyCardProps> = ({
   habit,
   logs,
   theme,
+  style,
   onToggleDate,
   onPressCard,
   onDeleteHabit,
@@ -28,16 +31,10 @@ const CompactWeeklyCardComponent: React.FC<CompactWeeklyCardProps> = ({
   const todayStr = getTodayString();
   const last7Days = getLastNDays(7);
   const targetVal = habit.targetValue || habit.targetPerDay || 1;
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
 
   const handleDelete = () => {
-    Alert.alert(
-      'حذف العادة',
-      `هل تريد بالتأكيد حذف عادة "${habit.name}" نهائياً؟`,
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        { text: 'حذف', style: 'destructive', onPress: () => onDeleteHabit && onDeleteHabit(habit.id) },
-      ]
-    );
+    setConfirmDeleteVisible(true);
   };
 
   return (
@@ -50,6 +47,7 @@ const CompactWeeklyCardComponent: React.FC<CompactWeeklyCardProps> = ({
           backgroundColor: theme.card,
           borderColor: theme.cardBorder,
         },
+        style,
       ]}
     >
       {/* Top Header */}
@@ -67,9 +65,12 @@ const CompactWeeklyCardComponent: React.FC<CompactWeeklyCardProps> = ({
             <Text style={[styles.habitName, { color: theme.text }]} numberOfLines={1}>
               {habit.name}
             </Text>
-            <Text style={[styles.subText, { color: theme.textDim }]}>
-              🔥 {stats.currentStreak} يوم • {stats.completionRate30Days}% هذا الشهر
-            </Text>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 4, marginTop: 2 }}>
+              <Ionicons name="flame" size={12} color="#F59E0B" />
+              <Text style={[styles.subText, { color: theme.textDim }]}>
+                {stats.currentStreak} يوم • {stats.completionRate30Days}% هذا الشهر
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -82,9 +83,12 @@ const CompactWeeklyCardComponent: React.FC<CompactWeeklyCardProps> = ({
       {habit.goal && stats.goalProgressPercent !== undefined && (
         <View style={styles.goalRow}>
           <View style={styles.goalLabelRow}>
-            <Text style={[styles.goalLabel, { color: habit.color }]}>
-              🎯 {habit.goal.title || (habit.goal.type === 'streak' ? `هدف ستريك ${habit.goal.targetValue} يوم` : `هدف ${habit.goal.targetValue} تكرار`)}
-            </Text>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 4, flex: 1 }}>
+              <Ionicons name="flag-outline" size={12} color={habit.color} />
+              <Text style={[styles.goalLabel, { color: habit.color }]} numberOfLines={1}>
+                {habit.goal.title || (habit.goal.type === 'streak' ? `هدف ستريك ${habit.goal.targetValue} يوم` : `هدف ${habit.goal.targetValue} تكرار`)}
+              </Text>
+            </View>
             <Text style={[styles.goalPercent, { color: habit.color }]}>
               {stats.goalProgressPercent}%
             </Text>
@@ -137,6 +141,23 @@ const CompactWeeklyCardComponent: React.FC<CompactWeeklyCardProps> = ({
           );
         })}
       </View>
+
+      {/* Custom Delete Confirmation Modal */}
+      <ConfirmActionModal
+        visible={confirmDeleteVisible}
+        theme={theme}
+        title="تأكيد الحذف"
+        message={`هل تريد بالتأكيد حذف عادة "${habit.name}" نهائياً؟`}
+        confirmText="حذف العادة"
+        cancelText="إلغاء"
+        isDestructive={true}
+        iconName="trash-outline"
+        onConfirm={() => {
+          setConfirmDeleteVisible(false);
+          onDeleteHabit && onDeleteHabit(habit.id);
+        }}
+        onCancel={() => setConfirmDeleteVisible(false)}
+      />
     </TouchableOpacity>
   );
 };

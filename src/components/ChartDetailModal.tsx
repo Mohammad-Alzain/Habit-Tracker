@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitLogs } from '../types/habit';
@@ -14,6 +15,8 @@ import { formatFriendlyDate } from '../utils/dateUtils';
 import { DialogHeader } from './ModalHeader';
 import { isRTL, AppLanguage } from '../utils/i18n';
 import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
+import { FrostedDialogModal } from './common/FrostedDialogModal';
+import { LiquidGlassView } from './common/LiquidGlassView';
 
 export interface ChartDetailData {
   type: 'weekday' | 'day_circle' | 'year_pixel';
@@ -60,23 +63,8 @@ export const ChartDetailModal: React.FC<ChartDetailModalProps> = ({
     .filter(Boolean) as Habit[];
 
   return (
-    <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
-        <View
-          style={[
-            styles.container,
-            {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.cardBorder,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: 0.35,
-              shadowRadius: 20,
-              elevation: 14,
-            },
-          ]}
-        >
+    <FrostedDialogModal visible={visible && !!data} theme={theme} onClose={onClose}>
+      <LiquidGlassView theme={theme} style={styles.container}>
           {/* Header */}
           <DialogHeader
             title={data.title}
@@ -111,9 +99,12 @@ export const ChartDetailModal: React.FC<ChartDetailModalProps> = ({
             {/* Completed Habits List */}
             {completedHabits.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.success }]}>
-                  ✅ العادات المنجزة ({completedHabits.length})
-                </Text>
+                <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Ionicons name="checkmark-circle" size={15} color={theme.success} />
+                  <Text style={[styles.sectionTitle, { color: theme.success, marginBottom: 0 }]}>
+                    العادات المنجزة ({completedHabits.length})
+                  </Text>
+                </View>
                 {completedHabits.map((h) => (
                   <TouchableOpacity
                     key={h.id}
@@ -136,9 +127,12 @@ export const ChartDetailModal: React.FC<ChartDetailModalProps> = ({
             {/* Missed Habits List */}
             {missedHabits.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.danger }]}>
-                  ⏳ عادات لم تكتمل ({missedHabits.length})
-                </Text>
+                <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Ionicons name="time-outline" size={15} color={theme.danger} />
+                  <Text style={[styles.sectionTitle, { color: theme.danger, marginBottom: 0 }]}>
+                    عادات لم تكتمل ({missedHabits.length})
+                  </Text>
+                </View>
                 {missedHabits.map((h) => (
                   <TouchableOpacity
                     key={h.id}
@@ -166,9 +160,8 @@ export const ChartDetailModal: React.FC<ChartDetailModalProps> = ({
               </View>
             )}
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+        </LiquidGlassView>
+    </FrostedDialogModal>
   );
 };
 

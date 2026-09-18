@@ -6,11 +6,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { HabitCategory, HabitMode, HabitType, TrackingType, HabitGoal } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { ModalHeader } from './ModalHeader';
+import { BlurOverlay } from './common/BlurOverlay';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
 import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
@@ -34,6 +36,7 @@ export interface HabitTemplate {
 interface HabitTemplatesModalProps {
   visible: boolean;
   theme: ThemeColors;
+  language?: AppLanguage;
   onClose: () => void;
   onAddFromTemplate: (template: HabitTemplate) => void;
 }
@@ -47,7 +50,7 @@ const TEMPLATE_PACKS: {
 }[] = [
   {
     packId: 'morning',
-    packTitle: 'روتين الصباح المعجزة ☀️',
+    packTitle: 'روتين الصباح المعجزة',
     packIcon: 'sunny-outline',
     packBadgeColor: '#F39C12',
     templates: [
@@ -98,7 +101,7 @@ const TEMPLATE_PACKS: {
   },
   {
     packId: 'focus',
-    packTitle: 'الإنتاجية والعمل العميق ⚡',
+    packTitle: 'الإنتاجية والعمل العميق',
     packIcon: 'flash-outline',
     packBadgeColor: '#7C83FD',
     templates: [
@@ -149,7 +152,7 @@ const TEMPLATE_PACKS: {
   },
   {
     packId: 'quit',
-    packTitle: 'الإقلاع عن العادات السلبية 🛡️',
+    packTitle: 'الإقلاع عن العادات السلبية',
     packIcon: 'shield-checkmark-outline',
     packBadgeColor: '#E74C3C',
     templates: [
@@ -199,7 +202,7 @@ const TEMPLATE_PACKS: {
   },
   {
     packId: 'fitness',
-    packTitle: 'اللياقة والصحة البدنية 🏃',
+    packTitle: 'اللياقة والصحة البدنية',
     packIcon: 'bicycle-outline',
     packBadgeColor: '#00CEC9',
     templates: [
@@ -258,14 +261,18 @@ export const HabitTemplatesModal: React.FC<HabitTemplatesModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
+      <BlurOverlay theme={theme} style={styles.overlay}>
         <View
           style={[
             styles.modalCard,
             {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.border,
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: theme.text === '#FFFFFF' ? 0.35 : 0.12,
+              shadowRadius: 24,
+              elevation: 12,
             },
           ]}
         >
@@ -343,8 +350,9 @@ export const HabitTemplatesModal: React.FC<HabitTemplatesModalProps> = ({
                         <View style={styles.modeBadgeRow}>
                           <Text style={[styles.tplName, { color: theme.text }]}>{tpl.name}</Text>
                           {tpl.mode === 'quit' && (
-                            <View style={styles.quitBadge}>
-                              <Text style={styles.quitBadgeText}>إقلاع 🛡️</Text>
+                            <View style={[styles.quitBadge, { flexDirection: 'row-reverse', alignItems: 'center', gap: 3 }]}>
+                              <Ionicons name="shield-checkmark" size={11} color="#E74C3C" />
+                              <Text style={styles.quitBadgeText}>إقلاع</Text>
                             </View>
                           )}
                         </View>
@@ -395,7 +403,7 @@ export const HabitTemplatesModal: React.FC<HabitTemplatesModalProps> = ({
             })}
           </ScrollView>
         </View>
-      </View>
+      </BlurOverlay>
     </Modal>
   );
 };

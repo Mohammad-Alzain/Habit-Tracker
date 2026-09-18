@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,7 +13,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useHabitStore, habitStore } from './src/store/habitStore';
 import { DARK_THEME, LIGHT_THEME } from './src/constants/theme';
-import { Habit, HabitType, HabitCategory, TimeOfDay, HabitGoal, HabitMode, TrackingType } from './src/types/habit';
+import { Habit, HabitType, HabitCategory, TimeOfDay, HabitGoal, HabitMode, TrackingType, HabitFrequency, DayOfWeek } from './src/types/habit';
 import { FloatingDock } from './src/components/FloatingDock';
 import { HabitsScreen } from './src/screens/HabitsScreen';
 import { AnalyticsScreen } from './src/screens/AnalyticsScreen';
@@ -27,16 +27,23 @@ import { MilestonesModal } from './src/components/MilestonesModal';
 import { HabitStudiesModal } from './src/components/HabitStudiesModal';
 import { HabitStackModal } from './src/components/HabitStackModal';
 import { ShareHabitCardModal } from './src/components/ShareHabitCardModal';
+import { RoadmapModal } from './src/components/RoadmapModal';
+import { ReorderHabitsModal } from './src/components/ReorderHabitsModal';
 import { ModalHeader } from './src/components/ModalHeader';
+import { AmbientBackground } from './src/components/common/AmbientBackground';
 import { t, isRTL, AppLanguage } from './src/utils/i18n';
 import { FULL_SCREEN_SAFE_TOP } from './src/constants/layout';
+import { soundService } from './src/services/soundService';
+import { hapticService } from './src/services/hapticService';
+import { timerBackgroundService } from './src/services/timerBackgroundService';
+import { NotificationService } from './src/services/notificationService';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Keep native splash screen visible until store loads
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {
-  const { habits, logs, stacks, themeMode, viewMode, settings, isLoaded } = useHabitStore();
+  const { habits, logs, subTaskLogs, stacks, themeMode, viewMode, settings, isLoaded } = useHabitStore();
   const language: AppLanguage = (settings?.language as AppLanguage) || 'ar';
   const rtl = isRTL(language);
 
@@ -51,6 +58,7 @@ export default function App() {
   const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
   const [selectedHabitForDetail, setSelectedHabitForDetail] = useState<Habit | null>(null);
 
+  const [roadmapModalVisible, setRoadmapModalVisible] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [analyticsModalVisible, setAnalyticsModalVisible] = useState(false);
   const [templatesModalVisible, setTemplatesModalVisible] = useState(false);
@@ -61,9 +69,15 @@ export default function App() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [habitToShare, setHabitToShare] = useState<Habit | null>(null);
   const [activeTimerHabit, setActiveTimerHabit] = useState<Habit | null>(null);
+  const [reorderModalVisible, setReorderModalVisible] = useState(false);
+
+
 
   useEffect(() => {
     habitStore.init();
+    timerBackgroundService.init().catch(() => {});
+    NotificationService.rescheduleInactivityReminder().catch(() => {});
+    soundService.initNative().catch(() => {});
 
     // Hide system navigation bar on Android for immersive edge-to-edge
     if (Platform.OS === 'android') {
@@ -113,23 +127,30 @@ export default function App() {
     category: HabitCategory;
     timeOfDay: TimeOfDay;
     goalFrequency?: string;
+    frequency?: HabitFrequency;
+    customDays?: DayOfWeek[];
     goal?: HabitGoal;
+    reminderEnabled?: boolean;
+    reminderTime?: string;
+    customReminderText?: string;
+    subTasks?: import('./src/types/habit').HabitSubTask[];
   }) => {
     if (habitToEdit) {
-      habitStore.updateHabit({
+      const updated: Habit = {
         ...habitToEdit,
         ...habitData,
-      });
+        frequency: habitData.frequency || habitToEdit.frequency || 'daily',
+        customDays: habitData.customDays !== undefined ? habitData.customDays : habitToEdit.customDays,
+      };
+      habitStore.updateHabit(updated);
       if (selectedHabitForDetail?.id === habitToEdit.id) {
-        setSelectedHabitForDetail({
-          ...habitToEdit,
-          ...habitData,
-        });
+        setSelectedHabitForDetail(updated);
       }
     } else {
       habitStore.addHabit({
         ...habitData,
-        frequency: 'daily',
+        frequency: habitData.frequency || 'daily',
+        customDays: habitData.customDays,
       });
     }
   };
@@ -142,14 +163,22 @@ export default function App() {
   };
 
   const handleToggleToday = (habitId: string) => {
+    soundService.playComplete();
+    hapticService.success();
     habitStore.toggleHabitDay(habitId);
   };
 
   const handleTogglePastDate = (habitId: string, dateStr: string) => {
+    soundService.playComplete();
+    hapticService.light();
     habitStore.toggleHabitDay(habitId, dateStr);
   };
 
   const handleAdjustNumeric = (habitId: string, delta: number) => {
+    if (delta > 0) {
+      soundService.playTap();
+    }
+    hapticService.light();
     habitStore.adjustNumericHabit(habitId, undefined, delta);
   };
 
@@ -164,6 +193,18 @@ export default function App() {
         },
       });
     }
+  };
+
+  const handleLogCraving = (habitId: string) => {
+    soundService.playComplete();
+    hapticService.success();
+    habitStore.logCravingResisted(habitId);
+  };
+
+  const handleLogSlip = (habitId: string, dateStr: string, reason: string) => {
+    soundService.playTap();
+    hapticService.warning();
+    habitStore.logHabitSlip(habitId, dateStr, reason);
   };
 
   const handleAddFromTemplate = (template: HabitTemplate) => {
@@ -198,40 +239,49 @@ export default function App() {
           translucent={true}
         />
 
-        {/* Habits Main Screen matching Image 5 */}
-        <HabitsScreen
-          habits={habits}
-          logs={logs}
-          theme={theme}
-          viewMode={viewMode}
-          language={language}
-          onToggleToday={handleToggleToday}
-          onTogglePastDate={handleTogglePastDate}
-          onAdjustNumeric={handleAdjustNumeric}
-          onStartTimer={(habit) => setActiveTimerHabit(habit)}
-          onPressHabit={(habit) => setSelectedHabitForDetail(habit)}
-          onDeleteHabit={handleDeleteHabit}
-          onAddNew={handleOpenAddModal}
-          onOpenSettings={() => setSettingsModalVisible(true)}
-          onOpenAnalytics={() => setAnalyticsModalVisible(true)}
-          onOpenWidgets={() => setWidgetsModalVisible(true)}
-          onOpenTemplates={() => setTemplatesModalVisible(true)}
-          onOpenMilestones={() => setMilestonesModalVisible(true)}
-          onOpenStacks={() => setStackModalVisible(true)}
-        />
+        {/* Ambient Subtle Geometric Canvas & Halos */}
+        <AmbientBackground theme={theme} isDark={themeMode === 'dark'} />
 
-        {/* Floating View Switcher Dock matching Image 5 */}
-        <FloatingDock
-          viewMode={viewMode}
-          onChangeViewMode={(m) => habitStore.setViewMode(m)}
-          theme={theme}
-        />
+            {/* Habits Main Screen matching Image 5 */}
+            <HabitsScreen
+              habits={habits}
+              logs={logs}
+              theme={theme}
+              viewMode={viewMode}
+              language={language}
+              onToggleToday={handleToggleToday}
+              onTogglePastDate={handleTogglePastDate}
+              onAdjustNumeric={handleAdjustNumeric}
+              onStartTimer={(habit) => setActiveTimerHabit(habit)}
+              onPressHabit={(habit) => setSelectedHabitForDetail(habit)}
+              onDeleteHabit={handleDeleteHabit}
+              onAddNew={handleOpenAddModal}
+              onOpenSettings={() => setSettingsModalVisible(true)}
+              onOpenAnalytics={() => setAnalyticsModalVisible(true)}
+              onOpenRoadmap={() => setRoadmapModalVisible(true)}
+              onOpenWidgets={() => setWidgetsModalVisible(true)}
+              onOpenTemplates={() => setTemplatesModalVisible(true)}
+              onOpenMilestones={() => setMilestonesModalVisible(true)}
+              onOpenStacks={() => setStackModalVisible(true)}
+              onOpenReorder={() => setReorderModalVisible(true)}
+              onReorderHabits={(newHabits) => habitStore.reorderHabits(newHabits)}
+              onLogCraving={handleLogCraving}
+              onLogSlip={handleLogSlip}
+            />
+
+            {/* Floating View Switcher Dock matching Image 5 */}
+            <FloatingDock
+              viewMode={viewMode}
+              onChangeViewMode={(m) => habitStore.setViewMode(m)}
+              theme={theme}
+            />
 
         {/* Modal: Habit Create / Edit matching Images 2 & 3 */}
         <HabitModal
           visible={habitModalVisible}
           habitToEdit={habitToEdit}
           theme={theme}
+          language={language}
           onClose={() => setHabitModalVisible(false)}
           onSave={handleSaveHabit}
           onDelete={handleDeleteHabit}
@@ -243,10 +293,17 @@ export default function App() {
           habit={selectedHabitForDetail}
           logs={logs}
           theme={theme}
+          language={language}
           onClose={() => setSelectedHabitForDetail(null)}
           onToggleDate={handleTogglePastDate}
           onStartTimer={(habit) => setActiveTimerHabit(habit)}
-          onToggleStreakFreeze={(habitId, dateStr) => habitStore.toggleStreakFreeze(habitId, dateStr)}
+          onToggleStreakFreeze={(habitId, dateStr) => {
+            habitStore.toggleStreakFreeze(habitId, dateStr);
+            const updated = habitStore.getSnapshot().habits.find((h) => h.id === habitId);
+            if (updated) {
+              setSelectedHabitForDetail(updated);
+            }
+          }}
           onEditHabit={handleOpenEditModal}
           onDeleteHabit={handleDeleteHabit}
           onArchiveHabit={(id) => habitStore.archiveHabit(id)}
@@ -255,6 +312,7 @@ export default function App() {
             setHabitToShare(habit);
             setShareModalVisible(true);
           }}
+          onOpenRoadmap={() => setRoadmapModalVisible(true)}
         />
 
         {/* Modal: Interactive Focus Timer */}
@@ -262,6 +320,7 @@ export default function App() {
           visible={!!activeTimerHabit}
           habit={activeTimerHabit}
           theme={theme}
+          language={language}
           onClose={() => setActiveTimerHabit(null)}
           onFinishSession={(habitId, minutes) => {
             habitStore.logTimerSession(habitId, minutes);
@@ -284,6 +343,7 @@ export default function App() {
             onArchiveHabit={(id) => habitStore.archiveHabit(id)}
             onUnarchiveHabit={(id) => habitStore.unarchiveHabit(id)}
             onSortHabits={(order) => habitStore.sortHabits(order)}
+            onOpenReorder={() => setReorderModalVisible(true)}
             onDeleteHabit={handleDeleteHabit}
             onImportData={(data, mode) => habitStore.importData(data, mode)}
             onResetDefaults={() => habitStore.resetToDefaults()}
@@ -294,6 +354,7 @@ export default function App() {
         {/* Modal: Deep Analytics */}
         <Modal visible={analyticsModalVisible} animationType="slide" onRequestClose={() => setAnalyticsModalVisible(false)}>
           <View style={{ flex: 1, backgroundColor: theme.background, paddingTop: FULL_SCREEN_SAFE_TOP }}>
+            <AmbientBackground theme={theme} isDark={themeMode === 'dark'} />
             <ModalHeader
               title={t('analytics', language)}
               theme={theme}
@@ -384,6 +445,30 @@ export default function App() {
             setHabitToShare(null);
           }}
         />
+
+        {/* Modal: Roadmap & Habit Commitments Hub */}
+        <RoadmapModal
+          visible={roadmapModalVisible}
+          habits={habits}
+          logs={logs}
+          subTaskLogs={subTaskLogs}
+          theme={theme}
+          language={language}
+          onClose={() => setRoadmapModalVisible(false)}
+          onToggleSubTask={(habitId, subTaskId, dateStr) => habitStore.toggleSubTask(habitId, subTaskId, dateStr)}
+          onToggleHabitDay={handleTogglePastDate}
+          onAddSubTask={(habitId, subTask) => habitStore.addSubTask(habitId, subTask)}
+          onEditHabit={handleOpenEditModal}
+        />
+
+        {/* Modal: Reorder Habits via Drag and Drop */}
+        <ReorderHabitsModal
+          visible={reorderModalVisible}
+          habits={habits}
+          theme={theme}
+          onClose={() => setReorderModalVisible(false)}
+          onSaveOrder={(newHabits) => habitStore.reorderHabits(newHabits)}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -391,6 +476,9 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  blurTargetWrapper: {
     flex: 1,
   },
   loadingContainer: {

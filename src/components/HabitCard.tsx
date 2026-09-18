@@ -1,11 +1,12 @@
-import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { memo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { HeatmapGrid } from './HeatmapGrid';
 import { calculateHabitStats } from '../utils/streakUtils';
 import { getTodayString } from '../utils/dateUtils';
+import { ConfirmActionModal } from './common/ConfirmActionModal';
 
 interface HabitCardProps {
   habit: Habit;
@@ -18,6 +19,8 @@ interface HabitCardProps {
   onPressCard: (habit: Habit) => void;
   onPressCell?: (dateStr: string) => void;
   onDeleteHabit?: (habitId: string) => void;
+  onLogCraving?: (habitId: string) => void;
+  onOpenSlipModal?: (habit: Habit) => void;
 }
 
 const CATEGORY_NAMES: Record<string, { label: string; icon: string }> = {
@@ -30,10 +33,10 @@ const CATEGORY_NAMES: Record<string, { label: string; icon: string }> = {
 };
 
 const TIME_NAMES: Record<string, string> = {
-  morning: '🌅 صباحاً',
-  afternoon: '☀️ ظهراً',
-  evening: '🌙 مساءً',
-  anytime: '⏰ طوال اليوم',
+  morning: 'صباحاً',
+  afternoon: 'ظهراً',
+  evening: 'مساءً',
+  anytime: 'طوال اليوم',
 };
 
 const HabitCardComponent: React.FC<HabitCardProps> = ({
@@ -47,13 +50,19 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
   onPressCard,
   onPressCell,
   onDeleteHabit,
+  onLogCraving,
+  onOpenSlipModal,
 }) => {
   const stats = calculateHabitStats(habit, logs);
   const todayStr = getTodayString();
   const habitLogs = logs[habit.id] || {};
   const currentTodayVal = habitLogs[todayStr] || 0;
   const targetVal = habit.targetValue || habit.targetPerDay || 1;
-  const isTodayCompleted = currentTodayVal >= targetVal;
+  const isQuit = habit.mode === 'quit';
+  const isTodaySlip = isQuit && (currentTodayVal === -1 || (habit.type === 'numeric' && currentTodayVal > targetVal));
+  const isTodayCompleted = isQuit
+    ? (habit.type === 'numeric' ? currentTodayVal <= targetVal && currentTodayVal > 0 : currentTodayVal >= 1)
+    : currentTodayVal >= targetVal;
 
   const categoryMeta = CATEGORY_NAMES[habit.category] || CATEGORY_NAMES.lifestyle;
   const timeLabel = TIME_NAMES[habit.timeOfDay] || TIME_NAMES.anytime;
@@ -68,19 +77,10 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
 
   const delta = getStepDelta();
 
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+
   const handleDelete = () => {
-    Alert.alert(
-      'حذف العادة',
-      `هل أنت متأكد من رغبتك في حذف عادة "${habit.name}" نهائياً؟`,
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'حذف',
-          style: 'destructive',
-          onPress: () => onDeleteHabit && onDeleteHabit(habit.id),
-        },
-      ]
-    );
+    setConfirmDeleteVisible(true);
   };
 
   return (
@@ -168,8 +168,75 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
           </View>
         </View>
 
-        {/* Action Controls by Habit Type */}
-        {habit.type === 'boolean' && (
+        {/* Action Controls: Specialized for Quit vs Build */}
+        {isQuit && habit.type === 'boolean' ? (
+          <View style={styles.quitActionsRow}>
+            {/* Craving Resisted Quick Button */}
+            {onLogCraving && (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => onLogCraving(habit.id)}
+                style={[styles.cravingChip, { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: 'rgba(245, 158, 11, 0.35)' }]}
+              >
+                <Ionicons name="flash-outline" size={13} color="#F59E0B" />
+                <Text style={styles.cravingChipText}>
+                  قاومت رغبة {habit.cravingsResisted?.[todayStr] ? `(${habit.cravingsResisted[todayStr]})` : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Clean Day / Slip Toggle Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => onToggleToday(habit.id)}
+              onLongPress={() => onOpenSlipModal && onOpenSlipModal(habit)}
+              style={[
+                styles.quitCleanBtn,
+                {
+                  backgroundColor: isTodaySlip
+                    ? 'rgba(231, 76, 60, 0.2)'
+                    : isTodayCompleted
+                    ? 'rgba(46, 213, 115, 0.2)'
+                    : theme.surface,
+                  borderColor: isTodaySlip
+                    ? '#E74C3C'
+                    : isTodayCompleted
+                    ? '#2ED573'
+                    : theme.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name={isTodaySlip ? 'alert-circle' : isTodayCompleted ? 'shield-checkmark' : 'shield-outline'}
+                size={16}
+                color={isTodaySlip ? '#E74C3C' : isTodayCompleted ? '#2ED573' : theme.textMuted}
+              />
+              <Text
+                style={[
+                  styles.quitCleanBtnText,
+                  {
+                    color: isTodaySlip ? '#E74C3C' : isTodayCompleted ? '#2ED573' : theme.textMuted,
+                    fontWeight: isTodayCompleted || isTodaySlip ? '800' : '600',
+                  },
+                ]}
+              >
+                {isTodaySlip ? 'زلة مسجلة' : isTodayCompleted ? 'صامد' : 'صامد اليوم؟'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Quick Slip Trigger Button */}
+            {onOpenSlipModal && !isTodaySlip && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onOpenSlipModal(habit)}
+                style={[styles.slipTriggerBtn, { borderColor: 'rgba(231, 76, 60, 0.3)', backgroundColor: 'rgba(231, 76, 60, 0.08)' }]}
+              >
+                <Ionicons name="refresh-outline" size={13} color="#E74C3C" />
+                <Text style={styles.slipTriggerText}>زلة</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : !isQuit && habit.type === 'boolean' ? (
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => onToggleToday(habit.id)}
@@ -190,9 +257,7 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
               color={isTodayCompleted ? '#FFFFFF' : theme.textMuted}
             />
           </TouchableOpacity>
-        )}
-
-        {habit.type === 'timer' && (
+        ) : !isQuit && habit.type === 'timer' ? (
           <TouchableOpacity
             activeOpacity={0.75}
             onPress={() => onStartTimer && onStartTimer(habit)}
@@ -213,18 +278,21 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
               {currentTodayVal >= targetVal ? 'مكتمل' : `${targetVal} د`}
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       {/* Goal Progress Banner if active */}
       {habit.goal && stats.goalProgressPercent !== undefined && (
         <View style={[styles.goalBanner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.goalBannerTop}>
-            <Text style={[styles.goalBannerTitle, { color: habit.color }]}>
-              🎯 {habit.goal.title || (habit.goal.type === 'streak' ? `هدف ستريك ${habit.goal.targetValue} يوم` : habit.goal.type === 'months' ? `الالتزام لـ ${habit.goal.targetValue} شهور` : `هدف ${habit.goal.targetValue} إنجاز`)}
-            </Text>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 5, flex: 1 }}>
+              <Ionicons name="flag-outline" size={13} color={habit.color} />
+              <Text style={[styles.goalBannerTitle, { color: habit.color }]} numberOfLines={1}>
+                {habit.goal.title || (habit.goal.type === 'streak' ? `هدف ستريك ${habit.goal.targetValue} يوم` : habit.goal.type === 'months' ? `الالتزام لـ ${habit.goal.targetValue} شهور` : `هدف ${habit.goal.targetValue} إنجاز`)}
+              </Text>
+            </View>
             <Text style={[styles.goalBannerPercent, { color: stats.goalAchieved ? theme.success : habit.color }]}>
-              {stats.goalAchieved ? '🏆 تم تحقيقه!' : `${stats.goalProgressPercent}%`}
+              {stats.goalAchieved ? 'تم تحقيقه!' : `${stats.goalProgressPercent}%`}
             </Text>
           </View>
           <View style={[styles.goalTrack, { backgroundColor: theme.card }]}>
@@ -243,18 +311,25 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
 
       {/* Inline Stepper for Numeric Habits */}
       {habit.type === 'numeric' && (
-        <View style={[styles.numericRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.numericRow, { backgroundColor: theme.surface, borderColor: isQuit && currentTodayVal > targetVal ? '#E74C3C' : theme.border }]}>
           <View style={styles.numericValueCol}>
-            <Text style={[styles.numericCurrentText, { color: isTodayCompleted ? habit.color : theme.text }]}>
-              {currentTodayVal} <Text style={{ fontSize: 12, color: theme.textMuted }}>/ {targetVal} {habit.unit || ''}</Text>
-            </Text>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={[styles.numericCurrentText, { color: isQuit ? (currentTodayVal > targetVal ? '#E74C3C' : '#2ED573') : (isTodayCompleted ? habit.color : theme.text) }]}>
+                {currentTodayVal} <Text style={{ fontSize: 12, color: theme.textMuted }}>/ {targetVal} {habit.unit || ''}</Text>
+              </Text>
+              {isQuit && (
+                <Text style={{ fontSize: 11, fontWeight: '700', color: currentTodayVal > targetVal ? '#E74C3C' : '#2ED573' }}>
+                  {currentTodayVal > targetVal ? `تجاوزت السقف بـ ${currentTodayVal - targetVal}` : 'ضمن السقف المسموح'}
+                </Text>
+              )}
+            </View>
             <View style={[styles.miniBarTrack, { backgroundColor: theme.card }]}>
               <View
                 style={[
                   styles.miniBarFill,
                   {
                     width: `${Math.min(100, (currentTodayVal / targetVal) * 100)}%`,
-                    backgroundColor: habit.color,
+                    backgroundColor: isQuit ? (currentTodayVal > targetVal ? '#E74C3C' : '#2ED573') : habit.color,
                   },
                 ]}
               />
@@ -272,7 +347,13 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
 
             <TouchableOpacity
               onPress={() => onAdjustNumeric && onAdjustNumeric(habit.id, delta)}
-              style={[styles.stepperBtn, { backgroundColor: habit.color, borderColor: habit.color }]}
+              style={[
+                styles.stepperBtn,
+                {
+                  backgroundColor: isQuit ? (currentTodayVal >= targetVal ? '#E74C3C' : '#FF6565') : habit.color,
+                  borderColor: isQuit ? '#E74C3C' : habit.color,
+                },
+              ]}
             >
               <Ionicons name="add" size={16} color="#FFFFFF" />
             </TouchableOpacity>
@@ -284,9 +365,10 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
       <View style={styles.gridContainer}>
         <HeatmapGrid
           logs={habitLogs}
-          habitColor={habit.color}
+          habitColor={isQuit ? '#2ED573' : habit.color}
           targetCount={targetVal}
           theme={theme}
+          mode={habit.mode}
           weeksCount={15}
           cellSize={13}
           cellGap={3.5}
@@ -301,8 +383,8 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
       <View style={[styles.footer, { borderTopColor: theme.cardBorder }]}>
         <View style={styles.footerItem}>
           <View style={styles.footerLabelRow}>
-            <Text style={styles.footerEmoji}>🔥</Text>
-            <Text style={[styles.footerLabel, { color: theme.textDim }]}>الستريك</Text>
+            <Ionicons name={isQuit ? 'shield-checkmark' : 'flame'} size={13} color={isQuit ? '#2ED573' : '#F59E0B'} />
+            <Text style={[styles.footerLabel, { color: theme.textDim }]}>{isQuit ? 'الصمود' : 'الستريك'}</Text>
           </View>
           <Text style={[styles.footerValue, { color: theme.text }]}>
             {stats.currentStreak} {stats.currentStreak === 1 ? 'يوم' : 'أيام'}
@@ -313,7 +395,7 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
 
         <View style={styles.footerItem}>
           <View style={styles.footerLabelRow}>
-            <Text style={styles.footerEmoji}>📊</Text>
+            <Ionicons name="stats-chart" size={13} color={habit.color} />
             <Text style={[styles.footerLabel, { color: theme.textDim }]}>الشهر</Text>
           </View>
           <Text style={[styles.footerValue, { color: habit.color }]}>
@@ -325,7 +407,7 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
 
         <View style={styles.footerItem}>
           <View style={styles.footerLabelRow}>
-            <Text style={styles.footerEmoji}>🏆</Text>
+            <Ionicons name="trophy" size={13} color="#F1C40F" />
             <Text style={[styles.footerLabel, { color: theme.textDim }]}>الأفضل</Text>
           </View>
           <Text style={[styles.footerValue, { color: theme.text }]}>
@@ -333,6 +415,23 @@ const HabitCardComponent: React.FC<HabitCardProps> = ({
           </Text>
         </View>
       </View>
+
+      {/* Custom Delete Confirmation Modal */}
+      <ConfirmActionModal
+        visible={confirmDeleteVisible}
+        theme={theme}
+        title="تأكيد الحذف"
+        message={`هل أنت متأكد من رغبتك في حذف عادة "${habit.name}" نهائياً؟`}
+        confirmText="حذف العادة"
+        cancelText="إلغاء"
+        isDestructive={true}
+        iconName="trash-outline"
+        onConfirm={() => {
+          setConfirmDeleteVisible(false);
+          onDeleteHabit && onDeleteHabit(habit.id);
+        }}
+        onCancel={() => setConfirmDeleteVisible(false)}
+      />
     </TouchableOpacity>
   );
 };
@@ -421,6 +520,51 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quitActionsRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cravingChip: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  cravingChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  quitCleanBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1.2,
+  },
+  quitCleanBtnText: {
+    fontSize: 12,
+  },
+  slipTriggerBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  slipTriggerText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#E74C3C',
   },
   timerLauncherBtn: {
     flexDirection: 'row',

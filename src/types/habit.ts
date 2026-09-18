@@ -2,6 +2,7 @@ export type HabitFrequency = 'daily' | 'weekly' | 'custom';
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 1 = Monday, ...
 
 export type HabitMode = 'build' | 'quit'; // بناء عادة أم إقلاع عن عادة
+export type QuitTrackingType = 'abstinence' | 'ceiling_limit'; // نمط الإقلاع: امتناع تام أم سقف أقصى
 export type HabitType = 'boolean' | 'numeric' | 'timer';
 export type TrackingType = 'step_by_step' | 'custom_value'; // خطوة بخطوة أم قيمة مخصصة
 export type HabitCategory = 'health' | 'fitness' | 'mind' | 'work' | 'learning' | 'lifestyle';
@@ -17,6 +18,13 @@ export interface HabitGoal {
   startDate?: string;
 }
 
+export interface HabitSubTask {
+  id: string;
+  title: string;
+  scheduleDays?: DayOfWeek[] | 'all'; // Days of week this sub-task is active: 0=Sun, 1=Mon, ..., 6=Sat
+  estimatedMinutes?: number;
+}
+
 export interface Habit {
   id: string;
   name: string;
@@ -26,6 +34,7 @@ export interface Habit {
   frequency: HabitFrequency;
   customDays?: DayOfWeek[];
   mode: HabitMode; // 'build' (بناء عادة) or 'quit' (إقلاع عن عادة)
+  quitTrackingType?: QuitTrackingType;
   type: HabitType;
   trackingType?: TrackingType;
   targetValue: number;
@@ -38,15 +47,35 @@ export interface Habit {
   goalFrequency?: string; // e.g. '4 / شهر'
   reminderEnabled?: boolean;
   reminderTime?: string; // e.g. '08:00'
+  customReminderText?: string; // Custom notification message for this habit
   restDays?: DayOfWeek[]; // Days where missing does not break streak
   streakFreezeDays?: string[]; // "YYYY-MM-DD"
   notes?: Record<string, string>; // "YYYY-MM-DD" -> note text
+  cravingsResisted?: Record<string, number>; // "YYYY-MM-DD" -> count of cravings resisted
+  subTasks?: HabitSubTask[]; // Sub-tasks & concrete commitments for the roadmap
   createdAt: string;
   archived?: boolean;
 }
 
 // Key is Habit ID, value is dictionary of "YYYY-MM-DD" -> current logged value (number)
 export type HabitLogs = Record<string, Record<string, number>>;
+
+// Key is Habit ID, value is dictionary of "YYYY-MM-DD" -> array of completed sub-task IDs
+export type SubTaskLogs = Record<string, Record<string, string[]>>;
+
+export interface RoadmapDayCommitment {
+  dateStr: string;
+  dayOfWeek: DayOfWeek;
+  habits: {
+    habit: Habit;
+    isCompleted: boolean;
+    scheduledSubTasks: HabitSubTask[];
+    completedSubTaskIds: string[];
+  }[];
+  totalCommitmentsCount: number;
+  completedCommitmentsCount: number;
+  isFullyDone: boolean;
+}
 
 export interface HabitStats {
   currentStreak: number;
@@ -61,6 +90,8 @@ export interface HabitStats {
   goalTargetLabel?: string;
   habitStrengthScore?: number; // 0 - 100% smart score
   missedYesterday?: boolean; // for Two-Day Rule
+  totalCravingsResisted?: number;
+  totalSlips?: number;
 }
 
 export interface HabitBadge {

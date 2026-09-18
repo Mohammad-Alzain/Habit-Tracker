@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeColors } from '../constants/theme';
+import { hapticService } from '../services/hapticService';
 
 export interface ModalHeaderProps {
   title: string;
@@ -19,93 +20,64 @@ export interface ModalHeaderProps {
 export const ModalHeader: React.FC<ModalHeaderProps> = ({
   title,
   subtitle,
-  icon,
-  iconColor,
-  iconBgColor,
   theme,
-  isRTL = true,
   onClose,
   actionButton,
   showDragHandle = false,
 }) => {
-  const closeBtnElement = (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onClose}
-      style={[styles.closeCircle, { backgroundColor: theme.surface }]}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-    >
-      <Ionicons name="close" size={20} color={theme.textMuted} />
-    </TouchableOpacity>
-  );
-
-  const titleBlockElement = (
-    <View style={[styles.titleRow, isRTL ? styles.titleRowRTL : styles.titleRowLTR]}>
-      {icon && (
-        <View
-          style={[
-            styles.iconCircle,
-            { backgroundColor: iconBgColor || `${iconColor || theme.primary}18` },
-          ]}
-        >
-          <Ionicons name={icon as any} size={20} color={iconColor || theme.primary} />
-        </View>
-      )}
-      <View style={[styles.textCol, isRTL ? styles.textColRTL : styles.textColLTR]}>
-        <Text
-          style={[
-            styles.titleText,
-            { color: theme.text, textAlign: isRTL ? 'right' : 'left' },
-          ]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text
-            style={[
-              styles.subtitleText,
-              { color: theme.textMuted, textAlign: isRTL ? 'right' : 'left' },
-            ]}
-            numberOfLines={1}
-          >
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
+  const handleClose = () => {
+    hapticService.light();
+    onClose();
+  };
 
   return (
     <View style={styles.wrapper}>
       {showDragHandle && <View style={styles.dragHandle} />}
-      <View style={[styles.container, isRTL ? styles.containerRTL : styles.containerLTR]}>
-        {/* In RTL (Arabic): Close button is strictly on the LEFT */}
-        {isRTL ? (
-          <>
-            <View style={styles.sideSlot}>
-              {closeBtnElement}
-            </View>
-            <View style={styles.centerSlot}>
-              {titleBlockElement}
-            </View>
-            <View style={styles.sideSlot}>
-              {actionButton || <View style={{ width: 36 }} />}
-            </View>
-          </>
-        ) : (
-          /* In LTR (English): Title on Left, Close button strictly on the RIGHT */
-          <>
-            <View style={styles.sideSlot}>
-              {actionButton || <View style={{ width: 36 }} />}
-            </View>
-            <View style={styles.centerSlot}>
-              {titleBlockElement}
-            </View>
-            <View style={styles.sideSlot}>
-              {closeBtnElement}
-            </View>
-          </>
+      <View style={styles.container}>
+        {/* Dead-Center Title: Mathematically centered, decoupled from button widths */}
+        <View style={styles.absoluteCenterTitle} pointerEvents="none">
+          <Text
+            style={[styles.titleText, { color: theme.text }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text
+              style={[styles.subtitleText, { color: theme.textMuted }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Physical Left: Close Button */}
+        <View style={styles.leftSlot}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleClose}
+            style={[
+              styles.closeCircle,
+              {
+                backgroundColor: theme.glassSurface || theme.surface,
+                borderColor: theme.glassBorder || theme.border,
+                borderWidth: 1,
+              },
+            ]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close" size={20} color={theme.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Physical Right: Optional Action Button */}
+        {actionButton && (
+          <View style={styles.rightSlot}>
+            {actionButton}
+          </View>
         )}
       </View>
     </View>
@@ -117,6 +89,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     marginBottom: 14,
+    paddingHorizontal: 16,
   },
   dragHandle: {
     width: 36,
@@ -126,61 +99,49 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     width: '100%',
+    height: 44,
+    position: 'relative',
+    justifyContent: 'center',
   },
-  containerRTL: {
-    flexDirection: 'row',
-  },
-  containerLTR: {
-    flexDirection: 'row',
-  },
-  sideSlot: {
-    minWidth: 36,
+  absoluteCenterTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 54,
   },
-  centerSlot: {
-    flex: 1,
-    marginHorizontal: 8,
-  },
-  titleRow: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  titleRowRTL: {
-    flexDirection: 'row-reverse',
+  leftSlot: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
+    zIndex: 10,
   },
-  titleRowLTR: {
-    flexDirection: 'row',
+  rightSlot: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
     justifyContent: 'center',
-  },
-  textCol: {
-    flexShrink: 1,
-  },
-  textColRTL: {
     alignItems: 'flex-end',
-  },
-  textColLTR: {
-    alignItems: 'flex-start',
+    zIndex: 10,
   },
   titleText: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '800',
+    textAlign: 'center',
+    maxWidth: '100%',
   },
   subtitleText: {
     fontSize: 11.5,
     marginTop: 1,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    textAlign: 'center',
+    maxWidth: '100%',
   },
   closeCircle: {
     width: 36,
@@ -190,10 +151,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dialogHeaderContainer: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
     width: '100%',
+    height: 40,
+    position: 'relative',
+    justifyContent: 'center',
     marginBottom: 16,
+  },
+  dialogAbsoluteCenterTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 46,
+  },
+  dialogLeftSlot: {
+    position: 'absolute',
+    left: 0,
+    top: 3,
+    bottom: 3,
+    justifyContent: 'center',
+    zIndex: 10,
   },
   closeCircleSmall: {
     width: 34,
@@ -202,17 +182,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dialogTitleCol: {
-    flex: 1,
-    marginHorizontal: 10,
-  },
   dialogTitleText: {
     fontSize: 17,
     fontWeight: '800',
+    textAlign: 'center',
+    maxWidth: '100%',
   },
   dialogSubtitleText: {
     fontSize: 12,
     marginTop: 2,
+    textAlign: 'center',
+    maxWidth: '100%',
   },
 });
 
@@ -228,28 +208,51 @@ export const DialogHeader: React.FC<DialogHeaderProps> = ({
   title,
   subtitle,
   theme,
-  isRTL = true,
   onClose,
 }) => {
-  return (
-    <View style={[styles.dialogHeaderContainer, { flexDirection: isRTL ? 'row' : 'row-reverse' }]}>
-      <TouchableOpacity
-        onPress={onClose}
-        style={[styles.closeCircleSmall, { backgroundColor: theme.surface }]}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="close" size={20} color={theme.textMuted} />
-      </TouchableOpacity>
+  const handleClose = () => {
+    hapticService.light();
+    onClose();
+  };
 
-      <View style={[styles.dialogTitleCol, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-        <Text style={[styles.dialogTitleText, { color: theme.text, textAlign: isRTL ? 'right' : 'left' }]}>
+  return (
+    <View style={styles.dialogHeaderContainer}>
+      {/* Dead-Center Title: Mathematically centered, decoupled from button widths */}
+      <View style={styles.dialogAbsoluteCenterTitle} pointerEvents="none">
+        <Text
+          style={[styles.dialogTitleText, { color: theme.text }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
           {title}
         </Text>
         {subtitle && (
-          <Text style={[styles.dialogSubtitleText, { color: theme.textMuted, textAlign: isRTL ? 'right' : 'left' }]}>
+          <Text
+            style={[styles.dialogSubtitleText, { color: theme.textMuted }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {subtitle}
           </Text>
         )}
+      </View>
+
+      {/* Physical Left: Close button */}
+      <View style={styles.dialogLeftSlot}>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={[
+            styles.closeCircleSmall,
+            {
+              backgroundColor: theme.glassSurface || theme.surface,
+              borderColor: theme.glassBorder || theme.border,
+              borderWidth: 1,
+            },
+          ]}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close" size={19} color={theme.textMuted} />
+        </TouchableOpacity>
       </View>
     </View>
   );

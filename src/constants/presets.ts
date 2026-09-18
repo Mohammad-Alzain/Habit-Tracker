@@ -23,6 +23,13 @@ export function getInitialSampleData(): { habits: Habit[]; logs: HabitLogs } {
       notes: {
         [formatDateDate(-1)]: 'أنجزت وحدة القواعد ومحادثة 20 دقيقة مع شريك لغة ممتاز!',
       },
+      subTasks: [
+        { id: 'st-1', title: 'دراسة وحدة القواعد (Grammar)', scheduleDays: [6, 1, 3], estimatedMinutes: 20 },
+        { id: 'st-2', title: 'حفظ 10 مفردات جديدة (Vocabulary)', scheduleDays: 'all', estimatedMinutes: 15 },
+        { id: 'st-3', title: 'ممارسة الاستماع لبودكاست (Listening)', scheduleDays: [0, 2, 4], estimatedMinutes: 15 },
+        { id: 'st-4', title: 'قراءة مقال بالإنجليزية (Reading)', scheduleDays: [6, 0, 2, 4], estimatedMinutes: 15 },
+        { id: 'st-5', title: 'جلسة محادثة صوتية (Speaking)', scheduleDays: [5], estimatedMinutes: 25 },
+      ],
       createdAt: new Date(Date.now() - 35 * 86400000).toISOString(),
     },
     {
@@ -40,6 +47,11 @@ export function getInitialSampleData(): { habits: Habit[]; logs: HabitLogs } {
       timeOfDay: 'anytime',
       goalFrequency: 'يومي',
       pinned: true,
+      subTasks: [
+        { id: 'st-w1', title: 'كوبان ماء عند الاستيقاظ (500 مل)', scheduleDays: 'all' },
+        { id: 'st-w2', title: 'قارورة الماء في فترة العمل (1000 مل)', scheduleDays: [0, 1, 2, 3, 4] },
+        { id: 'st-w3', title: 'ترطيب المساء بعد التمارين (1000 مل)', scheduleDays: 'all' },
+      ],
       createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
     },
     {
@@ -55,6 +67,10 @@ export function getInitialSampleData(): { habits: Habit[]; logs: HabitLogs } {
       unit: 'دقيقة',
       category: 'mind',
       timeOfDay: 'morning',
+      subTasks: [
+        { id: 'st-m1', title: 'تمرين تنفس 4-7-8 (5 دقائق)', scheduleDays: 'all' },
+        { id: 'st-m2', title: 'جلسة تأمل وامتنان صباحي (10 دقائق)', scheduleDays: [6, 0, 1, 2, 3, 4] },
+      ],
       createdAt: new Date(Date.now() - 25 * 86400000).toISOString(),
     },
     {

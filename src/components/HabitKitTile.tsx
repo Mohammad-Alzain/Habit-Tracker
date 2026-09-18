@@ -10,29 +10,39 @@ interface HabitKitTileProps {
   habit: Habit;
   logs: HabitLogs;
   theme: ThemeColors;
+  style?: any;
   onToggleToday: (habitId: string) => void;
   onStartTimer?: (habit: Habit) => void;
   onAdjustNumeric?: (habitId: string, delta: number) => void;
   onPressCard: (habit: Habit) => void;
   onDeleteHabit?: (habitId: string) => void;
+  onLogCraving?: (habitId: string) => void;
+  onOpenSlipModal?: (habit: Habit) => void;
 }
 
 const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
   habit,
   logs,
   theme,
+  style,
   onToggleToday,
   onStartTimer,
   onAdjustNumeric,
   onPressCard,
   onDeleteHabit,
+  onLogCraving,
+  onOpenSlipModal,
 }) => {
   const todayStr = getTodayString();
   const todayDate = parseISODate(todayStr);
   const habitLogs = logs[habit.id] || {};
   const currentTodayVal = habitLogs[todayStr] || 0;
   const targetThreshold = habit.targetValue || habit.targetPerDay || 1;
-  const isTodayCompleted = currentTodayVal >= targetThreshold;
+  const isQuit = habit.mode === 'quit';
+  const isTodaySlip = isQuit && (currentTodayVal === -1 || (habit.type === 'numeric' && currentTodayVal > targetThreshold));
+  const isTodayCompleted = isQuit
+    ? (habit.type === 'numeric' ? currentTodayVal <= targetThreshold && currentTodayVal > 0 : currentTodayVal >= 1)
+    : currentTodayVal >= targetThreshold;
   const stats = calculateHabitStats(habit, logs);
   const checkScale = useRef(new Animated.Value(1)).current;
 
@@ -54,9 +64,9 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
       }),
     ]).start();
 
-    if (habit.type === 'timer' && onStartTimer && !isTodayCompleted) {
+    if (!isQuit && habit.type === 'timer' && onStartTimer && !isTodayCompleted) {
       onStartTimer(habit);
-    } else if (habit.type === 'numeric' && onAdjustNumeric && !isTodayCompleted) {
+    } else if (habit.type === 'numeric' && onAdjustNumeric) {
       onAdjustNumeric(habit.id, 1);
     } else {
       onToggleToday(habit.id);
@@ -70,15 +80,14 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
       style={[
         styles.tile,
         {
-          backgroundColor: theme.glassSurface || theme.card,
-          borderColor: isTodayCompleted ? `${habit.color}60` : (theme.glassBorder || theme.cardBorder),
-          borderTopColor: theme.glassSpecular || 'rgba(255,255,255,0.26)',
-          borderTopWidth: 1.2,
+          backgroundColor: theme.card,
+          borderColor: isTodayCompleted ? `${habit.color}60` : theme.cardBorder,
           shadowColor: isTodayCompleted ? habit.color : '#000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: isTodayCompleted ? 0.32 : 0.14,
           shadowRadius: isTodayCompleted ? 10 : 5,
         },
+        style,
       ]}
     >
       {/* Top row: Title and Checkmark / Timer / Stepper */}
@@ -102,20 +111,42 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
             )}
 
             {habit.type === 'numeric' && (
-              <View style={[styles.typeBadge, { backgroundColor: `${habit.color}20`, borderColor: `${habit.color}40` }]}>
-                <Text style={[styles.typeBadgeText, { color: habit.color }]}>
-                  {currentTodayVal}/{targetThreshold} {habit.unit || ''}
+              <View style={[
+                styles.typeBadge,
+                {
+                  backgroundColor: isQuit && currentTodayVal > targetThreshold ? 'rgba(231, 76, 60, 0.2)' : `${habit.color}20`,
+                  borderColor: isQuit && currentTodayVal > targetThreshold ? '#E74C3C' : `${habit.color}40`,
+                },
+              ]}>
+                <Text style={[
+                  styles.typeBadgeText,
+                  { color: isQuit && currentTodayVal > targetThreshold ? '#E74C3C' : habit.color },
+                ]}>
+                  {currentTodayVal}/{targetThreshold} {habit.unit || ''} {isQuit ? '(سقف)' : ''}
                 </Text>
               </View>
             )}
 
             {stats.currentStreak > 0 && (
-              <View style={[styles.miniStreakPill, { backgroundColor: `${habit.color}20` }]}>
-                <Ionicons name="flame" size={10} color={habit.color} />
-                <Text style={[styles.miniStreakText, { color: habit.color }]}>
+              <View style={[styles.miniStreakPill, { backgroundColor: isQuit ? 'rgba(46, 213, 115, 0.15)' : `${habit.color}20` }]}>
+                <Ionicons name={isQuit ? 'shield-checkmark' : 'flame'} size={10} color={isQuit ? '#2ED573' : habit.color} />
+                <Text style={[styles.miniStreakText, { color: isQuit ? '#2ED573' : habit.color }]}>
                   {stats.currentStreak}
                 </Text>
               </View>
+            )}
+
+            {isQuit && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onLogCraving && onLogCraving(habit.id)}
+                style={[styles.miniStreakPill, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}
+              >
+                <Ionicons name="flash" size={10} color="#F59E0B" />
+                <Text style={[styles.miniStreakText, { color: '#F59E0B' }]}>
+                  {habit.cravingsResisted?.[todayStr] ? `${habit.cravingsResisted[todayStr]}` : '+رغبة'}
+                </Text>
+              </TouchableOpacity>
             )}
 
             {habit.reminderEnabled && habit.reminderTime && (
@@ -127,9 +158,10 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
 
           {/* Mini Goal badge */}
           {stats.goalTargetLabel && (
-            <View style={[styles.miniGoalBadge, { backgroundColor: `${habit.color}15` }]}>
+            <View style={[styles.miniGoalBadge, { backgroundColor: `${habit.color}15`, flexDirection: 'row-reverse', alignItems: 'center', gap: 4 }]}>
+              <Ionicons name="flag-outline" size={11} color={habit.color} />
               <Text style={[styles.miniGoalText, { color: habit.color }]} numberOfLines={1}>
-                🎯 {stats.goalTargetLabel}
+                {stats.goalTargetLabel}
               </Text>
             </View>
           )}
@@ -138,19 +170,36 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={handleActionPress}
+          onLongPress={() => {
+            if (isQuit && onOpenSlipModal) {
+              onOpenSlipModal(habit);
+            }
+          }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Animated.View
             style={[
               styles.checkCircle,
               {
-                backgroundColor: isTodayCompleted ? habit.color : 'transparent',
-                borderColor: isTodayCompleted ? habit.color : theme.border,
+                backgroundColor: isQuit
+                  ? (isTodaySlip ? 'rgba(231, 76, 60, 0.2)' : isTodayCompleted ? 'rgba(46, 213, 115, 0.2)' : 'transparent')
+                  : (isTodayCompleted ? habit.color : 'transparent'),
+                borderColor: isQuit
+                  ? (isTodaySlip ? '#E74C3C' : isTodayCompleted ? '#2ED573' : theme.border)
+                  : (isTodayCompleted ? habit.color : theme.border),
                 transform: [{ scale: checkScale }],
               },
             ]}
           >
-            {isTodayCompleted ? (
+            {isQuit ? (
+              isTodaySlip ? (
+                <Ionicons name="alert-circle" size={14} color="#E74C3C" />
+              ) : isTodayCompleted ? (
+                <Ionicons name="shield-checkmark" size={14} color="#2ED573" />
+              ) : (
+                <Ionicons name="shield-outline" size={14} color={habit.color} />
+              )
+            ) : isTodayCompleted ? (
               <Ionicons name="checkmark" size={14} color="#FFFFFF" />
             ) : habit.type === 'timer' ? (
               <Ionicons name="play" size={12} color={habit.color} style={{ marginLeft: 1 }} />
@@ -167,9 +216,16 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
           <View key={`c-${cIdx}`} style={styles.matrixCol}>
             {col.map((dStr) => {
               const count = habitLogs[dStr] || 0;
-              const isComp = count >= targetThreshold;
+              const isSlip = count === -1 || (isQuit && habit.type === 'numeric' && count > targetThreshold);
+              const isComp = isQuit
+                ? (habit.type === 'numeric' ? count <= targetThreshold && count > 0 : count >= 1)
+                : count >= targetThreshold;
               const isToday = dStr === todayStr;
-              const bg = isComp ? habit.color : theme.emptyCell;
+              const bg = isSlip
+                ? 'rgba(231, 76, 60, 0.85)'
+                : isComp
+                ? (isQuit ? '#2ED573' : habit.color)
+                : theme.emptyCell;
 
               return (
                 <View
@@ -178,8 +234,8 @@ const HabitKitTileComponent: React.FC<HabitKitTileProps> = ({
                     styles.matrixDot,
                     {
                       backgroundColor: bg,
-                      borderColor: isToday ? habit.color : 'transparent',
-                      borderWidth: isToday && !isComp ? 1 : 0,
+                      borderColor: isSlip ? '#E74C3C' : isToday ? habit.color : 'transparent',
+                      borderWidth: isToday && !isComp && !isSlip ? 1 : 0,
                     },
                   ]}
                 />

@@ -14,6 +14,7 @@ import { calculateHabitStats, calculateGlobalStats } from '../utils/streakUtils'
 import { getTodayString } from '../utils/dateUtils';
 import { NotificationService } from '../services/notificationService';
 import { ModalHeader } from './ModalHeader';
+import { BlurOverlay } from './common/BlurOverlay';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
 import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 import { Platform } from 'react-native';
@@ -54,16 +55,19 @@ export const WidgetsHubModal: React.FC<WidgetsHubModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
+      <BlurOverlay theme={theme} style={styles.overlay}>
         <View
           style={[
             styles.modalCard,
             {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.border,
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: theme.text === '#FFFFFF' ? 0.35 : 0.12,
+              shadowRadius: 24,
+              elevation: 12,
             },
-            Platform.OS === 'web' && ({ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' } as any),
           ]}
         >
           {/* Header */}
@@ -85,7 +89,7 @@ export const WidgetsHubModal: React.FC<WidgetsHubModalProps> = ({
                   <Text style={styles.notifAppTitle}>تذكير العادات اليومية</Text>
                 </View>
                 <Text style={styles.notifBody}>
-                  حان الآن وقت إنجاز: "{testNotification.habitName}"! حافظ على سلسلتك مستمرة 🔥
+                  حان الآن وقت إنجاز: "{testNotification.habitName}"! حافظ على استمرارية مسارك اليومي.
                 </Text>
               </View>
               <View style={styles.notifIconCircle}>
@@ -267,8 +271,8 @@ export const WidgetsHubModal: React.FC<WidgetsHubModalProps> = ({
                       <Text style={[styles.ringTitle, { color: theme.text }]}>معدل إنجاز اليوم</Text>
                       <Text style={[styles.ringSub, { color: theme.textMuted }]}>
                         {globalStats.todayCompletionRate === 100
-                          ? 'يوم مثالي مكتمل بنجاح! 🏆'
-                          : 'استمر، كل إنجاز يقربك من هدفك ✨'}
+                          ? 'يوم مثالي مكتمل بنجاح!'
+                          : 'استمر، كل إنجاز يقربك من هدفك'}
                       </Text>
                     </View>
                   </View>
@@ -322,7 +326,7 @@ export const WidgetsHubModal: React.FC<WidgetsHubModalProps> = ({
             )}
           </ScrollView>
         </View>
-      </View>
+      </BlurOverlay>
     </Modal>
   );
 };

@@ -1,12 +1,13 @@
 import { useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Habit, HabitLogs, AppExportData, ViewMode, HabitStack } from '../types/habit';
+import { Habit, HabitLogs, SubTaskLogs, HabitSubTask, DayOfWeek, AppExportData, ViewMode, HabitStack } from '../types/habit';
 import { getInitialSampleData } from '../constants/presets';
-import { getTodayString } from '../utils/dateUtils';
+import { getTodayString, parseISODate } from '../utils/dateUtils';
 import { NotificationService } from '../services/notificationService';
 
 const STORAGE_KEY_HABITS = '@habitflow_habits_v3';
 const STORAGE_KEY_LOGS = '@habitflow_logs_v3';
+const STORAGE_KEY_SUBTASK_LOGS = '@habitflow_subtask_logs_v3';
 const STORAGE_KEY_THEME = '@habitflow_theme_v3';
 const STORAGE_KEY_VIEW = '@habitflow_view_v3';
 const STORAGE_KEY_SETTINGS = '@habitflow_settings_v3';
@@ -35,7 +36,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dailyRemindersEnabled: true,
   morningReminderTime: '09:00',
   eveningReminderTime: '21:00',
-  reminderText: 'حان وقت إنجاز وتلوين عاداتك اليومية! 🌟',
+  reminderText: 'حان وقت إنجاز وتلوين عاداتك اليومية!',
   language: 'ar',
   themePalette: 'default',
   sortOrder: 'newest',
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export interface StoreState {
   habits: Habit[];
   logs: HabitLogs;
+  subTaskLogs: SubTaskLogs;
   stacks: HabitStack[];
   themeMode: 'dark' | 'light';
   viewMode: ViewMode;
@@ -55,6 +57,7 @@ export interface StoreState {
 let state: StoreState = {
   habits: [],
   logs: {},
+  subTaskLogs: {},
   stacks: [],
   themeMode: 'dark',
   viewMode: 'heatmap',
@@ -78,6 +81,7 @@ function schedulePersist() {
       await AsyncStorage.multiSet([
         [STORAGE_KEY_HABITS, JSON.stringify(state.habits)],
         [STORAGE_KEY_LOGS, JSON.stringify(state.logs)],
+        [STORAGE_KEY_SUBTASK_LOGS, JSON.stringify(state.subTaskLogs)],
         [STORAGE_KEY_THEME, state.themeMode],
         [STORAGE_KEY_VIEW, state.viewMode],
         [STORAGE_KEY_SETTINGS, JSON.stringify(state.settings)],
@@ -91,6 +95,10 @@ function schedulePersist() {
 
 export const habitStore = {
   getSnapshot(): StoreState {
+    return state;
+  },
+
+  getState(): StoreState {
     return state;
   },
 
@@ -108,6 +116,7 @@ export const habitStore = {
         STORAGE_KEY_VIEW,
         STORAGE_KEY_SETTINGS,
         STORAGE_KEY_STACKS,
+        STORAGE_KEY_SUBTASK_LOGS,
       ]);
 
       const savedHabitsStr = results[0][1];
@@ -116,6 +125,7 @@ export const habitStore = {
       const savedView = results[3][1] as ViewMode | null;
       const savedSettingsStr = results[4][1];
       const savedStacksStr = results[5][1];
+      const savedSubTaskLogsStr = results[6][1];
 
       let parsedSettings: AppSettings = DEFAULT_SETTINGS;
       if (savedSettingsStr) {
@@ -135,11 +145,35 @@ export const habitStore = {
         }
       }
 
+      let parsedSubTaskLogs: SubTaskLogs = {};
+      if (savedSubTaskLogsStr) {
+        try {
+          parsedSubTaskLogs = JSON.parse(savedSubTaskLogsStr);
+        } catch {
+          parsedSubTaskLogs = {};
+        }
+      }
+
+      const sampleData = getInitialSampleData();
+
       if (savedHabitsStr && savedLogsStr) {
+        let loadedHabits: Habit[] = JSON.parse(savedHabitsStr);
+        // Backfill presets' subTasks if old storage lacked them
+        loadedHabits = loadedHabits.map((h) => {
+          if (!h.subTasks || h.subTasks.length === 0) {
+            const match = sampleData.habits.find((p) => p.id === h.id || p.name.toLowerCase() === h.name.toLowerCase());
+            if (match?.subTasks) {
+              return { ...h, subTasks: match.subTasks };
+            }
+          }
+          return h;
+        });
+
         state = {
           ...state,
-          habits: JSON.parse(savedHabitsStr),
+          habits: loadedHabits,
           logs: JSON.parse(savedLogsStr),
+          subTaskLogs: parsedSubTaskLogs,
           stacks: parsedStacks,
           themeMode: savedTheme === 'light' ? 'light' : 'dark',
           viewMode: savedView || 'heatmap',
@@ -147,11 +181,11 @@ export const habitStore = {
           isLoaded: true,
         };
       } else {
-        const { habits, logs } = getInitialSampleData();
         state = {
           ...state,
-          habits,
-          logs,
+          habits: sampleData.habits,
+          logs: sampleData.logs,
+          subTaskLogs: parsedSubTaskLogs,
           stacks: parsedStacks,
           themeMode: savedTheme === 'light' ? 'light' : 'dark',
           viewMode: 'heatmap',
@@ -167,6 +201,7 @@ export const habitStore = {
         ...state,
         habits,
         logs,
+        subTaskLogs: {},
         stacks: [],
         themeMode: 'dark',
         viewMode: 'heatmap',
@@ -231,10 +266,14 @@ export const habitStore = {
     const newLogs = { ...state.logs };
     delete newLogs[habitId];
 
+    const newSubTaskLogs = { ...state.subTaskLogs };
+    delete newSubTaskLogs[habitId];
+
     state = {
       ...state,
       habits: state.habits.filter((h) => h.id !== habitId),
       logs: newLogs,
+      subTaskLogs: newSubTaskLogs,
     };
     emitChange();
     schedulePersist();
@@ -242,7 +281,24 @@ export const habitStore = {
   },
 
   /**
+   * Updates habits ordering (Drag and Drop / custom sort)
+   */
+  reorderHabits(newHabits: Habit[]): void {
+    // Preserve any archived habits that might not be in the reordered active list
+    const activeIds = new Set(newHabits.map((h) => h.id));
+    const archivedHabits = state.habits.filter((h) => !activeIds.has(h.id));
+
+    state = {
+      ...state,
+      habits: [...newHabits, ...archivedHabits],
+    };
+    emitChange();
+    schedulePersist();
+  },
+
+  /**
    * Toggles habit completion with 0ms instantaneous UI update
+   * Automatically updates sub-tasks for that day if present
    */
   toggleHabitDay(habitId: string, dateStr: string = getTodayString()): boolean {
     const habit = state.habits.find((h) => h.id === habitId);
@@ -250,11 +306,30 @@ export const habitStore = {
     const currentHabitLogs = { ...(state.logs[habitId] || {}) };
     const currentCount = currentHabitLogs[dateStr] || 0;
 
-    const isNowCompleted = currentCount < target;
+    const isQuit = habit?.mode === 'quit';
+    const isNowCompleted = isQuit ? currentCount <= 0 : currentCount < target;
     if (isNowCompleted) {
-      currentHabitLogs[dateStr] = target;
+      currentHabitLogs[dateStr] = isQuit ? 1 : target;
     } else {
       delete currentHabitLogs[dateStr];
+    }
+
+    // Sync sub-tasks for this day
+    const updatedSubTaskLogs = { ...state.subTaskLogs };
+    if (habit?.subTasks && habit.subTasks.length > 0) {
+      const dayOfWeek = parseISODate(dateStr).getDay() as DayOfWeek;
+      const scheduledSubTasks = habit.subTasks.filter((st) => {
+        if (!st.scheduleDays || st.scheduleDays === 'all') return true;
+        return Array.isArray(st.scheduleDays) && st.scheduleDays.includes(dayOfWeek);
+      });
+
+      const habitSubDayLogs = { ...(updatedSubTaskLogs[habitId] || {}) };
+      if (isNowCompleted) {
+        habitSubDayLogs[dateStr] = scheduledSubTasks.map((st) => st.id);
+      } else {
+        delete habitSubDayLogs[dateStr];
+      }
+      updatedSubTaskLogs[habitId] = habitSubDayLogs;
     }
 
     state = {
@@ -263,10 +338,131 @@ export const habitStore = {
         ...state.logs,
         [habitId]: currentHabitLogs,
       },
+      subTaskLogs: updatedSubTaskLogs,
     };
     emitChange();
     schedulePersist();
     return isNowCompleted;
+  },
+
+  /**
+   * Toggles a single sub-task commitment for a habit on a given date.
+   * If all scheduled subtasks for that day become completed, parent habit is marked done!
+   */
+  toggleSubTask(habitId: string, subTaskId: string, dateStr: string = getTodayString()): boolean {
+    const habit = state.habits.find((h) => h.id === habitId);
+    if (!habit) return false;
+
+    const currentCompleted = state.subTaskLogs[habitId]?.[dateStr] || [];
+    const isAlreadyCompleted = currentCompleted.includes(subTaskId);
+    const updatedCompleted = isAlreadyCompleted
+      ? currentCompleted.filter((id) => id !== subTaskId)
+      : [...currentCompleted, subTaskId];
+
+    const updatedSubTaskLogs = {
+      ...state.subTaskLogs,
+      [habitId]: {
+        ...(state.subTaskLogs[habitId] || {}),
+        [dateStr]: updatedCompleted,
+      },
+    };
+
+    // Check if all scheduled subtasks for this day are completed
+    const dayOfWeek = parseISODate(dateStr).getDay() as DayOfWeek;
+    const scheduledSubTasks = (habit.subTasks || []).filter((st) => {
+      if (!st.scheduleDays || st.scheduleDays === 'all') return true;
+      return Array.isArray(st.scheduleDays) && st.scheduleDays.includes(dayOfWeek);
+    });
+
+    const currentHabitLogs = { ...(state.logs[habitId] || {}) };
+    const target = habit.targetValue || habit.targetPerDay || 1;
+
+    if (scheduledSubTasks.length > 0) {
+      const allScheduledDone = scheduledSubTasks.every((st) => updatedCompleted.includes(st.id));
+      if (allScheduledDone) {
+        currentHabitLogs[dateStr] = target;
+      } else if (isAlreadyCompleted && (currentHabitLogs[dateStr] || 0) >= target) {
+        // If unchecked and was previously completed, unmark or adjust
+        delete currentHabitLogs[dateStr];
+      }
+    }
+
+    state = {
+      ...state,
+      subTaskLogs: updatedSubTaskLogs,
+      logs: {
+        ...state.logs,
+        [habitId]: currentHabitLogs,
+      },
+    };
+    emitChange();
+    schedulePersist();
+    return !isAlreadyCompleted;
+  },
+
+  setSubTaskCompleted(habitId: string, subTaskId: string, completed: boolean = true, dateStr: string = getTodayString()): boolean {
+    const currentCompleted = state.subTaskLogs[habitId]?.[dateStr] || [];
+    const isAlreadyCompleted = currentCompleted.includes(subTaskId);
+    if (isAlreadyCompleted === completed) {
+      return completed;
+    }
+    return this.toggleSubTask(habitId, subTaskId, dateStr);
+  },
+
+  addSubTask(habitId: string, subTaskData: Omit<HabitSubTask, 'id'>): HabitSubTask {
+    const subTask: HabitSubTask = {
+      ...subTaskData,
+      id: `st-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    };
+    state = {
+      ...state,
+      habits: state.habits.map((h) => {
+        if (h.id === habitId) {
+          return {
+            ...h,
+            subTasks: [...(h.subTasks || []), subTask],
+          };
+        }
+        return h;
+      }),
+    };
+    emitChange();
+    schedulePersist();
+    return subTask;
+  },
+
+  updateSubTask(habitId: string, updatedSubTask: HabitSubTask): void {
+    state = {
+      ...state,
+      habits: state.habits.map((h) => {
+        if (h.id === habitId) {
+          return {
+            ...h,
+            subTasks: (h.subTasks || []).map((st) => (st.id === updatedSubTask.id ? updatedSubTask : st)),
+          };
+        }
+        return h;
+      }),
+    };
+    emitChange();
+    schedulePersist();
+  },
+
+  deleteSubTask(habitId: string, subTaskId: string): void {
+    state = {
+      ...state,
+      habits: state.habits.map((h) => {
+        if (h.id === habitId) {
+          return {
+            ...h,
+            subTasks: (h.subTasks || []).filter((st) => st.id !== subTaskId),
+          };
+        }
+        return h;
+      }),
+    };
+    emitChange();
+    schedulePersist();
   },
 
   adjustNumericHabit(habitId: string, dateStr: string = getTodayString(), delta: number): void {
@@ -306,6 +502,55 @@ export const habitStore = {
             newNotes[dateStr] = noteText.trim();
           }
           return { ...h, notes: newNotes };
+        }
+        return h;
+      }),
+    };
+    emitChange();
+    schedulePersist();
+  },
+
+  /**
+   * Records that the user resisted an urge/craving (+1 Craving Resisted)
+   */
+  logCravingResisted(habitId: string, dateStr: string = getTodayString()): number {
+    let newCount = 1;
+    state = {
+      ...state,
+      habits: state.habits.map((h) => {
+        if (h.id === habitId) {
+          const currentCravings = { ...(h.cravingsResisted || {}) };
+          newCount = (currentCravings[dateStr] || 0) + 1;
+          currentCravings[dateStr] = newCount;
+          return { ...h, cravingsResisted: currentCravings };
+        }
+        return h;
+      }),
+    };
+    emitChange();
+    schedulePersist();
+    return newCount;
+  },
+
+  /**
+   * Logs an honest slip/relapse for a quit habit on a specific day.
+   * Marks logs[habitId][dateStr] = -1 (slip) and saves reflection reason.
+   */
+  logHabitSlip(habitId: string, dateStr: string = getTodayString(), reason?: string): void {
+    const currentHabitLogs = { ...(state.logs[habitId] || {}) };
+    currentHabitLogs[dateStr] = -1; // -1 denotes a logged slip
+
+    state = {
+      ...state,
+      logs: {
+        ...state.logs,
+        [habitId]: currentHabitLogs,
+      },
+      habits: state.habits.map((h) => {
+        if (h.id === habitId && reason && reason.trim()) {
+          const currentNotes = { ...(h.notes || {}) };
+          currentNotes[dateStr] = `تعثر: ${reason.trim()}`;
+          return { ...h, notes: currentNotes };
         }
         return h;
       }),
@@ -504,6 +749,7 @@ export const habitStore = {
       ...state,
       habits: [],
       logs: {},
+      subTaskLogs: {},
     };
     emitChange();
     schedulePersist();

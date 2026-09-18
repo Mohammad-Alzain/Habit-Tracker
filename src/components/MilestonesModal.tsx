@@ -13,6 +13,7 @@ import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { calculateMilestones, MilestoneBadge } from '../utils/streakUtils';
 import { ModalHeader } from './ModalHeader';
+import { BlurOverlay } from './common/BlurOverlay';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
 import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
@@ -40,16 +41,19 @@ export const MilestonesModal: React.FC<MilestonesModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.overlay, { backgroundColor: theme.modalOverlay }]}>
+      <BlurOverlay theme={theme} style={styles.overlay}>
         <View
           style={[
             styles.card,
             {
-              backgroundColor: theme.glassSurface || theme.card,
-              borderColor: theme.glassBorder || theme.cardBorder,
-              borderTopColor: theme.glassSpecular || theme.border,
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: theme.text === '#FFFFFF' ? 0.35 : 0.12,
+              shadowRadius: 24,
+              elevation: 12,
             },
-            Platform.OS === 'web' && ({ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' } as any),
           ]}
         >
           {/* Header */}
@@ -121,7 +125,7 @@ export const MilestonesModal: React.FC<MilestonesModalProps> = ({
                           },
                         ]}
                       >
-                        {badge.unlocked ? 'مكتمل 🎉' : `${badge.currentCount} / ${badge.targetCount}`}
+                        {badge.unlocked ? 'مكتمل' : `${badge.currentCount} / ${badge.targetCount}`}
                       </Text>
                       <Text style={[styles.badgeTitle, { color: badge.unlocked ? theme.text : theme.textMuted }]}>
                         {badge.title}
@@ -154,7 +158,7 @@ export const MilestonesModal: React.FC<MilestonesModalProps> = ({
             <View style={{ height: 16 }} />
           </ScrollView>
         </View>
-      </View>
+      </BlurOverlay>
     </Modal>
   );
 };

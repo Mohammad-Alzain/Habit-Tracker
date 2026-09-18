@@ -5,6 +5,7 @@ import { HabitCategory } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { t, isRTL, AppLanguage } from '../utils/i18n';
 import { hapticService } from '../services/hapticService';
+import { soundService } from '../services/soundService';
 
 interface HabitKitHeaderProps {
   theme: ThemeColors;
@@ -14,11 +15,13 @@ interface HabitKitHeaderProps {
   onOpenSettings: () => void;
   onOpenAnalytics: () => void;
   onAddNew: () => void;
+  onOpenRoadmap?: () => void;
   onOpenWidgets?: () => void;
   onOpenTemplates?: () => void;
   onOpenMilestones?: () => void;
   onOpenStacks?: () => void;
   onOpenStudies?: () => void;
+  onOpenReorder?: () => void;
   onToggleFilter?: () => void;
   isFilterHidden?: boolean;
 }
@@ -31,11 +34,13 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
   onOpenSettings,
   onOpenAnalytics,
   onAddNew,
+  onOpenRoadmap,
   onOpenWidgets,
   onOpenTemplates,
   onOpenMilestones,
   onOpenStacks,
   onOpenStudies,
+  onOpenReorder,
   onToggleFilter,
   isFilterHidden = false,
 }) => {
@@ -52,13 +57,14 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
 
   return (
     <View style={styles.headerWrapper}>
-      {/* Top action row with Scrollable feature pills */}
+      {/* Top action row */}
       <View style={[styles.topRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
         {/* Quick Add Button */}
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => {
             hapticService.light();
+            soundService.playTap();
             onAddNew();
           }}
           style={[styles.purpleAddBtn, { backgroundColor: '#7C83FD' }]}
@@ -76,43 +82,39 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
             { flexDirection: rtl ? 'row-reverse' : 'row' },
           ]}
         >
-          {/* Toggle Filter Button */}
-          {onToggleFilter && (
+          {/* Roadmap & Commitments Button */}
+          {onOpenRoadmap && (
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
                 hapticService.light();
-                onToggleFilter();
+                soundService.playTap();
+                onOpenRoadmap();
               }}
               style={[
                 styles.featurePillBtn,
                 {
-                  backgroundColor: !isFilterHidden ? `${theme.primary}25` : theme.surface,
-                  borderColor: !isFilterHidden ? `${theme.primary}60` : theme.border,
+                  backgroundColor: 'rgba(255, 101, 101, 0.15)',
+                  borderColor: 'rgba(255, 101, 101, 0.4)',
+                  borderTopColor: 'rgba(255, 255, 255, 0.25)',
                 },
               ]}
             >
-              <Ionicons
-                name={isFilterHidden ? 'funnel-outline' : 'funnel'}
-                size={14}
-                color={!isFilterHidden ? theme.primary : theme.textDim}
-              />
-              <Text
-                style={[
-                  styles.featurePillText,
-                  { color: !isFilterHidden ? theme.primary : theme.text },
-                ]}
-              >
-                {isFilterHidden ? (rtl ? 'إظهار الفلاتر' : 'Show Filters') : (rtl ? 'إخفاء الفلاتر' : 'Hide Filters')}
+              <Ionicons name="map-outline" size={15} color="#FF6565" />
+              <Text style={[styles.featurePillText, { color: theme.text, fontWeight: '800' }]}>
+                {language === 'ar' ? 'خريطة الالتزامات' : 'Roadmap'}
               </Text>
             </TouchableOpacity>
           )}
+
+
 
           {/* Stats chart button */}
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
               hapticService.light();
+              soundService.playTap();
               onOpenAnalytics();
             }}
             style={[styles.featurePillBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
@@ -197,17 +199,55 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
           )}
         </ScrollView>
 
-        {/* Settings button */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => {
-            hapticService.light();
-            onOpenSettings();
-          }}
-          style={[styles.circleBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-        >
-          <Ionicons name="settings-outline" size={20} color={theme.text} />
-        </TouchableOpacity>
+        {/* Actions Controls Group: Filter Toggle & Settings */}
+        <View style={[styles.rightGroup, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          {onToggleFilter && (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                hapticService.medium();
+                soundService.playTap();
+                onToggleFilter();
+              }}
+              style={[
+                styles.circleBtn,
+                {
+                  backgroundColor: !isFilterHidden ? `${theme.primary}25` : theme.surface,
+                  borderColor: !isFilterHidden ? `${theme.primary}80` : theme.border,
+                },
+              ]}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <Ionicons
+                name={!isFilterHidden ? 'funnel' : 'funnel-outline'}
+                size={18}
+                color={!isFilterHidden ? theme.primary : theme.text}
+              />
+              {selectedCategory !== 'all' && (
+                <View style={[styles.filterActiveDot, { backgroundColor: theme.primary }]} />
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Settings button */}
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => {
+              hapticService.light();
+              soundService.playTap();
+              onOpenSettings();
+            }}
+            style={[
+              styles.circleBtn,
+              {
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <Ionicons name="settings-outline" size={19} color={theme.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Category Pills Strip */}
@@ -229,13 +269,15 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
                   activeOpacity={0.7}
                   onPress={() => {
                     hapticService.selection();
+                    soundService.playTap();
                     onSelectCategory(cat.id);
                   }}
                   style={[
                     styles.categoryPill,
                     {
-                      backgroundColor: isSelected ? theme.surface : 'transparent',
-                      borderColor: isSelected ? theme.border : 'transparent',
+                      backgroundColor: isSelected ? theme.surface : (theme.text === '#FFFFFF' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)'),
+                      borderColor: isSelected ? theme.primary : theme.border,
+                      borderWidth: 1,
                       flexDirection: rtl ? 'row-reverse' : 'row',
                     },
                   ]}
@@ -243,7 +285,7 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
                   <Ionicons
                     name={cat.icon as any}
                     size={15}
-                    color={isSelected ? theme.text : theme.textDim}
+                    color={isSelected ? theme.primary : theme.textDim}
                   />
                   <Text
                     style={[
@@ -310,8 +352,23 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 1,
+    borderTopWidth: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  rightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   featurePillBtn: {
     flexDirection: 'row-reverse',
