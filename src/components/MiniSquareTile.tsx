@@ -1,6 +1,7 @@
 import React, { memo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { getTodayString, getCachedHeatmapColumns } from '../utils/dateUtils';
@@ -16,20 +17,6 @@ interface MiniSquareTileProps {
   onAdjustNumeric?: (habitId: string, delta: number) => void;
   onPressCard: (habit: Habit) => void;
   onDeleteHabit?: (habitId: string) => void;
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  if (!hex) return `rgba(124, 131, 253, ${alpha})`;
-  let c = hex.replace('#', '');
-  if (c.length === 3) {
-    c = c.split('').map((x) => x + x).join('');
-  }
-  const num = parseInt(c, 16);
-  if (isNaN(num)) return `rgba(124, 131, 253, ${alpha})`;
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
@@ -51,27 +38,13 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
     ? (habit.type === 'numeric' ? currentTodayVal <= targetThreshold && currentTodayVal > 0 : currentTodayVal >= 1)
     : currentTodayVal >= targetThreshold;
 
-  const stats = calculateHabitStats(habit, logs);
   const checkScale = useRef(new Animated.Value(1)).current;
 
-  // 6 columns x 7 days = 42 days history (fits in mini square)
-  const columns = getCachedHeatmapColumns(6);
+  // 7 columns x 7 rows = 49 days (7 full weeks) spanning the card width
+  const columns = getCachedHeatmapColumns(7);
 
   const handleToggle = () => {
-    Animated.sequence([
-      Animated.timing(checkScale, {
-        toValue: 1.25,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-      Animated.spring(checkScale, {
-        toValue: 1,
-        friction: 5,
-        tension: 85,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
+    // Immediate toggle without delay
     if (!isQuit && habit.type === 'timer' && onStartTimer && !isTodayCompleted) {
       onStartTimer(habit);
     } else if (habit.type === 'numeric' && onAdjustNumeric) {
@@ -79,75 +52,87 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
     } else {
       onToggleToday(habit.id);
     }
+
+    Animated.sequence([
+      Animated.timing(checkScale, {
+        toValue: 1.25,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.spring(checkScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const isDark = theme.background.startsWith('#0') || theme.background === '#121212';
   const habitColor = habit.color || '#7C83FD';
-  const bgTint = isDark ? hexToRgba(habitColor, 0.12) : hexToRgba(habitColor, 0.06);
 
   return (
     <TouchableOpacity
-      activeOpacity={0.86}
+      activeOpacity={0.88}
       onPress={() => onPressCard(habit)}
       style={[
         styles.card,
         {
           backgroundColor: isDark ? '#141418' : theme.card,
-          borderColor: isTodayCompleted ? hexToRgba(habitColor, 0.5) : theme.cardBorder,
+          borderColor: isTodayCompleted ? `${habitColor}70` : theme.cardBorder,
         },
         style,
       ]}
     >
-      {/* Background Subtle Colored Glow */}
-      <View
-        pointerEvents="none"
-        style={[styles.colorGlow, { backgroundColor: bgTint }]}
-      />
+      {/* Smooth Subtle Gradient from transparent background to habit color (Request 2) */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={`miniGrad-${habit.id}`} x1="0" y1="1" x2="1" y2="0">
+              <Stop offset="0%" stopColor={isDark ? '#141418' : theme.card} stopOpacity="0" />
+              <Stop offset="60%" stopColor={habitColor} stopOpacity="0.04" />
+              <Stop offset="100%" stopColor={habitColor} stopOpacity={isDark ? 0.15 : 0.08} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" rx={14} fill={`url(#miniGrad-${habit.id})`} />
+        </Svg>
+      </View>
 
-      {/* Top Bar: Mini Check/Icon trigger + streak */}
+      {/* Top Header Row: Check Button + Habit Title (streak hidden per user request 4) */}
       <View style={styles.topRow}>
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={handleToggle}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
           <Animated.View
             style={[
               styles.actionBox,
               {
-                backgroundColor: isTodayCompleted ? habitColor : hexToRgba(habitColor, 0.18),
-                borderColor: isTodayCompleted ? habitColor : hexToRgba(habitColor, 0.35),
+                backgroundColor: isTodayCompleted ? habitColor : `${habitColor}22`,
+                borderColor: isTodayCompleted ? habitColor : `${habitColor}45`,
                 transform: [{ scale: checkScale }],
               },
             ]}
           >
             {isTodayCompleted ? (
-              <Ionicons name="checkmark" size={11} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={11} color="#FFFFFF" style={{ fontWeight: '900' }} />
             ) : (
               <Ionicons name={(habit.icon as any) || 'sparkles'} size={10} color={habitColor} />
             )}
           </Animated.View>
         </TouchableOpacity>
 
-        {stats.currentStreak > 0 && (
-          <View style={styles.streakBadge}>
-            <Ionicons name={isQuit ? 'shield-checkmark' : 'flame'} size={9} color={isQuit ? '#2ED573' : '#F59E0B'} />
-            <Text style={[styles.streakText, { color: isQuit ? '#2ED573' : '#F59E0B' }]}>
-              {stats.currentStreak}
-            </Text>
-          </View>
-        )}
+        {/* Habit Title in header in smaller font next to action button */}
+        <Text
+          style={[styles.title, { color: theme.text }]}
+          numberOfLines={1}
+        >
+          {habit.name}
+        </Text>
       </View>
 
-      {/* Habit Title */}
-      <Text
-        style={[styles.title, { color: theme.text }]}
-        numberOfLines={1}
-      >
-        {habit.name}
-      </Text>
-
-      {/* Mini Dot Heatmap Matrix */}
+      {/* Enlarged Dot Matrix spanning almost the full width of the card (Request 4) */}
       <View style={styles.matrixContainer}>
         {columns.map((col, colIdx) => (
           <View key={`mini-col-${colIdx}`} style={styles.matrixCol}>
@@ -167,10 +152,10 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
                       backgroundColor: isDone
                         ? habitColor
                         : isDark
-                        ? 'rgba(255, 255, 255, 0.08)'
+                        ? 'rgba(255, 255, 255, 0.07)'
                         : 'rgba(0, 0, 0, 0.06)',
                       borderColor: isToday ? (isDone ? '#FFFFFF' : habitColor) : 'transparent',
-                      borderWidth: isToday ? 0.7 : 0,
+                      borderWidth: isToday ? 0.9 : 0,
                     },
                   ]}
                 />
@@ -189,23 +174,21 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
     borderWidth: 1,
-    padding: 8,
+    paddingHorizontal: 7,
+    paddingTop: 8,
+    paddingBottom: 9,
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 112,
+    minHeight: 116,
     position: 'relative',
     overflow: 'hidden',
-  },
-  colorGlow: {
-    ...StyleSheet.absoluteFill,
-    opacity: 0.9,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 4,
+    gap: 5,
+    marginBottom: 7,
   },
   actionBox: {
     width: 20,
@@ -215,35 +198,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 1.5,
-  },
-  streakText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-  },
   title: {
-    fontSize: 10.5,
+    flex: 1,
+    fontSize: 10,
     fontWeight: '700',
-    textAlign: 'center',
-    width: '100%',
-    marginBottom: 6,
+    textAlign: 'left',
   },
   matrixContainer: {
+    direction: 'ltr',
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 2.5,
+    width: '100%',
+    paddingHorizontal: 1,
   },
   matrixCol: {
     flexDirection: 'column',
-    gap: 2.5,
+    gap: 3.2,
   },
   matrixDot: {
-    width: 5.5,
-    height: 5.5,
-    borderRadius: 1.6,
+    width: 8.8,
+    height: 8.8,
+    borderRadius: 2.5,
   },
 });

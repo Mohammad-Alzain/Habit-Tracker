@@ -1,6 +1,7 @@
 import React, { memo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { getTodayString, getCachedFullCardMatrixColumns } from '../utils/dateUtils';
@@ -60,20 +61,7 @@ const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
   const columns = getCachedFullCardMatrixColumns(24);
 
   const handleCheckAction = () => {
-    Animated.sequence([
-      Animated.timing(checkScale, {
-        toValue: 1.28,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-      Animated.spring(checkScale, {
-        toValue: 1,
-        friction: 4,
-        tension: 85,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
+    // 1. Instant execution with ZERO delay (Request 5)
     if (!isQuit && habit.type === 'timer' && onStartTimer && !isTodayCompleted) {
       onStartTimer(habit);
     } else if (habit.type === 'numeric' && onAdjustNumeric) {
@@ -81,14 +69,26 @@ const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
     } else {
       onToggleToday(habit.id);
     }
+
+    // 2. Snappy fast micro-bounce without delaying registration
+    Animated.sequence([
+      Animated.timing(checkScale, {
+        toValue: 1.18,
+        duration: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(checkScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 110,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const isDark = theme.background.startsWith('#0') || theme.background === '#121212';
   const habitColor = habit.color || '#7C83FD';
-
-  // Deep luxury gradient / tint matching screenshot media_1789773068963.png
-  const bgGlowTint = isDark ? hexToRgba(habitColor, 0.13) : hexToRgba(habitColor, 0.06);
-  const cardBorderColor = isDark ? hexToRgba(habitColor, 0.22) : hexToRgba(habitColor, 0.15);
+  const cardBorderColor = isDark ? hexToRgba(habitColor, 0.18) : hexToRgba(habitColor, 0.12);
 
   // Subtitle generation: goal title, frequency, or streak
   let subtitle = habit.description || '';
@@ -113,11 +113,19 @@ const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
         style,
       ]}
     >
-      {/* Deep Habit Color Blend Overlay (Request 4) */}
-      <View
-        pointerEvents="none"
-        style={[styles.colorBlendOverlay, { backgroundColor: bgGlowTint }]}
-      />
+      {/* Smooth gradient from transparent background to habit color (Request 2) */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={`fullGrad-${habit.id}`} x1="0" y1="1" x2="1" y2="0">
+              <Stop offset="0%" stopColor={isDark ? '#141417' : theme.card} stopOpacity="0" />
+              <Stop offset="50%" stopColor={habitColor} stopOpacity="0.04" />
+              <Stop offset="100%" stopColor={habitColor} stopOpacity={isDark ? 0.16 : 0.08} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" rx={22} fill={`url(#fullGrad-${habit.id})`} />
+        </Svg>
+      </View>
 
       {/* Top Header Row matching screenshot */}
       <View style={styles.topRow}>
@@ -249,10 +257,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  colorBlendOverlay: {
-    ...StyleSheet.absoluteFill,
-    opacity: 0.95,
-  },
+
   topRow: {
     direction: 'ltr',
     flexDirection: 'row',

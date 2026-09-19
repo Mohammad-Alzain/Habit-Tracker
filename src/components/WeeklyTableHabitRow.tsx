@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { getTodayString, parseISODate, getArabicDayShort } from '../utils/dateUtils';
@@ -129,11 +130,19 @@ const WeeklyTableHabitRowComponent: React.FC<WeeklyTableHabitRowProps> = ({
         style,
       ]}
     >
-      {/* Background Subtle Tint */}
-      <View
-        pointerEvents="none"
-        style={[styles.rowTint, { backgroundColor: bgTint }]}
-      />
+      {/* Smooth Subtle Gradient from transparent to habit color (Request 2) */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={`rowGrad-${habit.id}`} x1="1" y1="0" x2="0" y2="0">
+              <Stop offset="0%" stopColor={isDark ? '#141418' : theme.card} stopOpacity="0" />
+              <Stop offset="50%" stopColor={habitColor} stopOpacity="0.03" />
+              <Stop offset="100%" stopColor={habitColor} stopOpacity={isDark ? 0.14 : 0.07} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" rx={14} fill={`url(#rowGrad-${habit.id})`} />
+        </Svg>
+      </View>
 
       {/* Habit Column (Clickable to open details) */}
       <TouchableOpacity
@@ -269,9 +278,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  rowTint: {
-    ...StyleSheet.absoluteFill,
-  },
+
   habitInfoCol: {
     flex: 1,
     flexDirection: 'row',
