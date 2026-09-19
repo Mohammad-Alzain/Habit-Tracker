@@ -24,6 +24,7 @@ export interface RoadmapModalProps {
   subTaskLogs: SubTaskLogs;
   theme: ThemeColors;
   language?: AppLanguage;
+  initialTimerSession?: ActiveTimerSession | null;
   onClose: () => void;
   onToggleSubTask: (habitId: string, subTaskId: string, dateStr: string) => void;
   onToggleHabitDay: (habitId: string, dateStr: string) => void;
@@ -38,6 +39,7 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
   subTaskLogs,
   theme,
   language = 'ar',
+  initialTimerSession,
   onClose,
   onToggleSubTask,
   onToggleHabitDay,
@@ -47,6 +49,12 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
   const [viewMode, setViewMode] = useState<RoadmapViewMode>('quest_trail');
   const [addingSubTaskHabitId, setAddingSubTaskHabitId] = useState<string | null>(null);
   const [activeTimerSession, setActiveTimerSession] = useState<ActiveTimerSession | null>(null);
+
+  React.useEffect(() => {
+    if (visible && initialTimerSession) {
+      setActiveTimerSession(initialTimerSession);
+    }
+  }, [visible, initialTimerSession]);
 
   const { todayStr, activeHabits, days, todayStats } = useRoadmap(
     habits,

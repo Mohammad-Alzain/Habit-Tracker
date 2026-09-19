@@ -71,6 +71,7 @@ export default function App() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [habitToShare, setHabitToShare] = useState<Habit | null>(null);
   const [activeTimerHabit, setActiveTimerHabit] = useState<Habit | null>(null);
+  const [roadmapTimerSession, setRoadmapTimerSession] = useState<any | null>(null);
   const [reorderModalVisible, setReorderModalVisible] = useState(false);
   const [weeklyReviewVisible, setWeeklyReviewVisible] = useState(false);
 
@@ -286,6 +287,19 @@ export default function App() {
               theme={theme}
               onPressPill={(session) => {
                 if (session.isSubTask) {
+                  setRoadmapTimerSession({
+                    habitId: session.habitId,
+                    subTaskId: session.subTaskId,
+                    isSubTask: true,
+                    title: session.title,
+                    subtitle: session.subtitle,
+                    taskTitle: session.title,
+                    habitName: session.subtitle,
+                    durationMinutes: session.durationMinutes,
+                    color: '#FF6565',
+                    icon: 'timer-outline',
+                    dateStr: session.dateStr,
+                  });
                   setRoadmapModalVisible(true);
                 } else {
                   const habit = habits.find((h) => h.id === session.habitId);
@@ -521,7 +535,11 @@ export default function App() {
           subTaskLogs={subTaskLogs}
           theme={theme}
           language={language}
-          onClose={() => setRoadmapModalVisible(false)}
+          initialTimerSession={roadmapTimerSession}
+          onClose={() => {
+            setRoadmapModalVisible(false);
+            setRoadmapTimerSession(null);
+          }}
           onToggleSubTask={(habitId, subTaskId, dateStr) => habitStore.toggleSubTask(habitId, subTaskId, dateStr)}
           onToggleHabitDay={handleTogglePastDate}
           onAddSubTask={(habitId, subTask) => habitStore.addSubTask(habitId, subTask)}

@@ -5,6 +5,7 @@ import { HabitSubTask } from '../../../types/habit';
 import { ThemeColors } from '../../../constants/theme';
 import { hapticService } from '../../../services/hapticService';
 import { soundService } from '../../../services/soundService';
+import { timerBackgroundService } from '../../../services/timerBackgroundService';
 import { ActiveTimerSession } from '../../timer/TaskTimerModal';
 import { roadmapStyles as styles } from '../styles/roadmapStyles';
 
@@ -47,6 +48,16 @@ export const SubTaskItem: React.FC<SubTaskItemProps> = ({
 
     // If sub-task has estimated duration and is not completed yet, prompt timer clock
     if (!isCompleted && subTask.estimatedMinutes && subTask.estimatedMinutes > 0 && onStartTimer) {
+      const activeSession = timerBackgroundService.getSession();
+      if (activeSession && activeSession.isRunning) {
+        hapticService.warning();
+        Alert.alert(
+          'مؤقت نشط بداخل التطبيق',
+          `هناك مؤقت يعمل حالياً لجلسة "${activeSession.title}". لا يمكنك تشغيل مؤقت آخر حتى ينتهي أو يتم إيقافه.`
+        );
+        return;
+      }
+
       hapticService.medium();
       onStartTimer({
         habitId,

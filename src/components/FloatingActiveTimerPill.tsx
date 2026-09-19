@@ -84,7 +84,7 @@ export const FloatingActiveTimerPill: React.FC<FloatingActiveTimerPillProps> = (
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
-    bottom: 84,
+    bottom: 104,
     left: 0,
     right: 0,
     alignItems: 'center',
