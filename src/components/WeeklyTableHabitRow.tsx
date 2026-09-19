@@ -46,6 +46,7 @@ export const WeeklyTableHeader: React.FC<WeeklyTableHeaderProps> = memo(({
   language = 'ar',
 }) => {
   const todayStr = getTodayString();
+  const isDark = theme.background.startsWith('#0') || theme.background === '#121212';
 
   return (
     <View style={[styles.headerRow, { borderBottomColor: theme.border }]}>
@@ -71,7 +72,9 @@ export const WeeklyTableHeader: React.FC<WeeklyTableHeaderProps> = memo(({
                 style={[
                   styles.headerDayText,
                   {
-                    color: isToday ? theme.primary : theme.textDim,
+                    color: isToday
+                      ? (isDark ? theme.primary : theme.primary)
+                      : theme.textDim,
                     fontWeight: isToday ? '800' : '500',
                   },
                 ]}
@@ -82,7 +85,9 @@ export const WeeklyTableHeader: React.FC<WeeklyTableHeaderProps> = memo(({
                 style={[
                   styles.headerDateNum,
                   {
-                    color: isToday ? theme.primary : theme.textMuted,
+                    color: isToday
+                      ? (isDark ? theme.primary : theme.primary)
+                      : theme.textMuted,
                     fontWeight: isToday ? '800' : '400',
                   },
                 ]}

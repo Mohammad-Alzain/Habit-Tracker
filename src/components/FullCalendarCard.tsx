@@ -1,4 +1,4 @@
-import React, { memo, useRef } from 'react';
+import React, { memo, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
@@ -9,7 +9,8 @@ import { calculateHabitStats } from '../utils/streakUtils';
 
 interface FullCalendarCardProps {
   habit: Habit;
-  logs: HabitLogs;
+  logs?: HabitLogs;
+  habitLogs?: Record<string, number>;
   theme: ThemeColors;
   style?: any;
   onToggleToday: (habitId: string) => void;
@@ -19,6 +20,8 @@ interface FullCalendarCardProps {
   onPressCard: (habit: Habit) => void;
   onDeleteHabit?: (habitId: string) => void;
 }
+
+const EMPTY_LOGS: Record<string, number> = {};
 
 function hexToRgba(hex: string, alpha: number): string {
   if (!hex) return `rgba(124, 131, 253, ${alpha})`;
@@ -37,16 +40,16 @@ function hexToRgba(hex: string, alpha: number): string {
 const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
   habit,
   logs,
+  habitLogs: directHabitLogs,
   theme,
   style,
   onToggleToday,
-  onTogglePastDate,
   onAdjustNumeric,
   onStartTimer,
   onPressCard,
 }) => {
   const todayStr = getTodayString();
-  const habitLogs = logs[habit.id] || {};
+  const habitLogs = directHabitLogs || (logs ? logs[habit.id] : undefined) || EMPTY_LOGS;
   const currentTodayVal = habitLogs[todayStr] || 0;
   const targetThreshold = habit.targetValue || habit.targetPerDay || 1;
   const isQuit = habit.mode === 'quit';
@@ -54,7 +57,10 @@ const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
     ? (habit.type === 'numeric' ? currentTodayVal <= targetThreshold && currentTodayVal > 0 : currentTodayVal >= 1)
     : currentTodayVal >= targetThreshold;
 
-  const stats = calculateHabitStats(habit, logs);
+  const stats = useMemo(() => {
+    return calculateHabitStats(habit, logs || { [habit.id]: habitLogs });
+  }, [habit, logs, habitLogs]);
+
   const checkScale = useRef(new Animated.Value(1)).current;
 
   // 24 columns x 7 days = 168 days matrix
@@ -73,14 +79,14 @@ const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
     // 2. Snappy fast micro-bounce without delaying registration
     Animated.sequence([
       Animated.timing(checkScale, {
-        toValue: 1.18,
-        duration: 40,
+        toValue: 1.15,
+        duration: 35,
         useNativeDriver: true,
       }),
       Animated.spring(checkScale, {
         toValue: 1,
-        friction: 5,
-        tension: 110,
+        friction: 6,
+        tension: 130,
         useNativeDriver: true,
       }),
     ]).start();
@@ -99,6 +105,40 @@ const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
   } else if (habit.targetValue && habit.unit) {
     subtitle = `${habit.targetValue} ${habit.unit} يومياً`;
   }
+
+  // Pre-computed empty dot color to avoid per-dot calculations
+  const emptyDotColor = isDark ? hexToRgba(habitColor, 0.08) : 'rgba(0, 0, 0, 0.06)';
+
+  // High-performance memoized matrix using pure lightweight <View> elements (Zero touchable overhead)
+  const matrixContent = useMemo(() => {
+    return columns.map((col, colIdx) => (
+      <View key={`full-col-${colIdx}`} style={styles.matrixCol}>
+        {col.map((dateStr) => {
+          const val = habitLogs[dateStr] || 0;
+          const isDone = isQuit
+            ? (habit.type === 'numeric' ? val <= targetThreshold && val > 0 : val >= 1)
+            : val >= targetThreshold;
+          const isToday = dateStr === todayStr;
+
+          return (
+            <View
+              key={dateStr}
+              style={[
+                styles.matrixDot,
+                {
+                  backgroundColor: isDone ? habitColor : emptyDotColor,
+                  borderColor: isToday
+                    ? (isDone ? '#FFFFFF' : habitColor)
+                    : 'transparent',
+                  borderWidth: isToday ? 1 : 0,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+    ));
+  }, [columns, habitLogs, isQuit, habit.type, targetThreshold, todayStr, habitColor, emptyDotColor]);
 
   return (
     <TouchableOpacity
@@ -201,50 +241,27 @@ const FullCalendarCardComponent: React.FC<FullCalendarCardProps> = ({
       {/* 24-Column Dot Matrix Spanning Width */}
       <View style={styles.matrixWrapper}>
         <View style={styles.matrixContainer}>
-          {columns.map((col, colIdx) => (
-            <View key={`full-col-${colIdx}`} style={styles.matrixCol}>
-              {col.map((dateStr) => {
-                const val = habitLogs[dateStr] || 0;
-                const isDone = isQuit
-                  ? (habit.type === 'numeric' ? val <= targetThreshold && val > 0 : val >= 1)
-                  : val >= targetThreshold;
-                const isToday = dateStr === todayStr;
-
-                return (
-                  <TouchableOpacity
-                    key={dateStr}
-                    activeOpacity={0.65}
-                    onPress={() => onTogglePastDate?.(habit.id, dateStr)}
-                    hitSlop={{ top: 2, bottom: 2, left: 1, right: 1 }}
-                  >
-                    <View
-                      style={[
-                        styles.matrixDot,
-                        {
-                          backgroundColor: isDone
-                            ? habitColor
-                            : isDark
-                            ? hexToRgba(habitColor, 0.08)
-                            : 'rgba(0, 0, 0, 0.06)',
-                          borderColor: isToday
-                            ? (isDone ? '#FFFFFF' : habitColor)
-                            : 'transparent',
-                          borderWidth: isToday ? 1 : 0,
-                        },
-                      ]}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ))}
+          {matrixContent}
         </View>
       </View>
     </TouchableOpacity>
   );
 };
 
-export const FullCalendarCard = memo(FullCalendarCardComponent);
+function areCardPropsEqual(prev: FullCalendarCardProps, next: FullCalendarCardProps): boolean {
+  if (prev.habit !== next.habit) return false;
+  if (prev.theme !== next.theme) return false;
+  if (prev.onToggleToday !== next.onToggleToday) return false;
+  if (prev.onPressCard !== next.onPressCard) return false;
+  
+  const prevLogs = prev.habitLogs || (prev.logs ? prev.logs[prev.habit.id] : undefined);
+  const nextLogs = next.habitLogs || (next.logs ? next.logs[next.habit.id] : undefined);
+  if (prevLogs !== nextLogs) return false;
+
+  return true;
+}
+
+export const FullCalendarCard = memo(FullCalendarCardComponent, areCardPropsEqual);
 
 const styles = StyleSheet.create({
   card: {

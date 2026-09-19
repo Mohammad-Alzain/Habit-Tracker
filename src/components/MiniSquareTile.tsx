@@ -1,15 +1,15 @@
-import React, { memo, useRef } from 'react';
+import React, { memo, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
 import { getTodayString, getCachedHeatmapColumns } from '../utils/dateUtils';
-import { calculateHabitStats } from '../utils/streakUtils';
 
 interface MiniSquareTileProps {
   habit: Habit;
-  logs: HabitLogs;
+  logs?: HabitLogs;
+  habitLogs?: Record<string, number>;
   theme: ThemeColors;
   style?: any;
   onToggleToday: (habitId: string) => void;
@@ -19,9 +19,12 @@ interface MiniSquareTileProps {
   onDeleteHabit?: (habitId: string) => void;
 }
 
+const EMPTY_LOGS: Record<string, number> = {};
+
 const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
   habit,
   logs,
+  habitLogs: directHabitLogs,
   theme,
   style,
   onToggleToday,
@@ -30,7 +33,7 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
   onPressCard,
 }) => {
   const todayStr = getTodayString();
-  const habitLogs = logs[habit.id] || {};
+  const habitLogs = directHabitLogs || (logs ? logs[habit.id] : undefined) || EMPTY_LOGS;
   const currentTodayVal = habitLogs[todayStr] || 0;
   const targetThreshold = habit.targetValue || habit.targetPerDay || 1;
   const isQuit = habit.mode === 'quit';
@@ -40,7 +43,7 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
 
   const checkScale = useRef(new Animated.Value(1)).current;
 
-  // 7 columns x 7 rows = 49 days (7 full weeks) spanning the card width
+  // 7 columns x 7 rows = 49 days spanning the card width
   const columns = getCachedHeatmapColumns(7);
 
   const handleToggle = () => {
@@ -71,6 +74,38 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
   const isDark = theme.background.startsWith('#0') || theme.background === '#121212';
   const habitColor = habit.color || '#7C83FD';
 
+  // Pre-computed empty dot color to avoid per-dot calculations
+  const emptyDotColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)';
+
+  // High-performance memoized matrix using pure <View> elements (no TouchableOpacity overhead)
+  const matrixContent = useMemo(() => {
+    return columns.map((col, colIdx) => (
+      <View key={`mini-col-${colIdx}`} style={styles.matrixCol}>
+        {col.map((dateStr) => {
+          const val = habitLogs[dateStr] || 0;
+          const isDone = isQuit
+            ? (habit.type === 'numeric' ? val <= targetThreshold && val > 0 : val >= 1)
+            : val >= targetThreshold;
+          const isToday = dateStr === todayStr;
+
+          return (
+            <View
+              key={dateStr}
+              style={[
+                styles.matrixDot,
+                {
+                  backgroundColor: isDone ? habitColor : emptyDotColor,
+                  borderColor: isToday ? (isDone ? '#FFFFFF' : habitColor) : 'transparent',
+                  borderWidth: isToday ? 0.9 : 0,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+    ));
+  }, [columns, habitLogs, isQuit, habit.type, targetThreshold, todayStr, habitColor, emptyDotColor]);
+
   return (
     <TouchableOpacity
       activeOpacity={0.88}
@@ -84,7 +119,7 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
         style,
       ]}
     >
-      {/* Smooth Subtle Gradient from transparent background to habit color (Request 2) */}
+      {/* Smooth Subtle Gradient from transparent background to habit color */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Svg width="100%" height="100%">
           <Defs>
@@ -98,7 +133,7 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
         </Svg>
       </View>
 
-      {/* Top Header Row: Check Button + Habit Title (streak hidden per user request 4) */}
+      {/* Top Header Row: Check Button + Habit Title (streak hidden per user request) */}
       <View style={styles.topRow}>
         <TouchableOpacity
           activeOpacity={0.7}
@@ -132,43 +167,28 @@ const MiniSquareTileComponent: React.FC<MiniSquareTileProps> = ({
         </Text>
       </View>
 
-      {/* Enlarged Dot Matrix spanning almost the full width of the card (Request 4) */}
+      {/* Enlarged Dot Matrix spanning almost the full width of the card */}
       <View style={styles.matrixContainer}>
-        {columns.map((col, colIdx) => (
-          <View key={`mini-col-${colIdx}`} style={styles.matrixCol}>
-            {col.map((dateStr) => {
-              const val = habitLogs[dateStr] || 0;
-              const isDone = isQuit
-                ? (habit.type === 'numeric' ? val <= targetThreshold && val > 0 : val >= 1)
-                : val >= targetThreshold;
-              const isToday = dateStr === todayStr;
-
-              return (
-                <View
-                  key={dateStr}
-                  style={[
-                    styles.matrixDot,
-                    {
-                      backgroundColor: isDone
-                        ? habitColor
-                        : isDark
-                        ? 'rgba(255, 255, 255, 0.07)'
-                        : 'rgba(0, 0, 0, 0.06)',
-                      borderColor: isToday ? (isDone ? '#FFFFFF' : habitColor) : 'transparent',
-                      borderWidth: isToday ? 0.9 : 0,
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
-        ))}
+        {matrixContent}
       </View>
     </TouchableOpacity>
   );
 };
 
-export const MiniSquareTile = memo(MiniSquareTileComponent);
+function areMiniPropsEqual(prev: MiniSquareTileProps, next: MiniSquareTileProps): boolean {
+  if (prev.habit !== next.habit) return false;
+  if (prev.theme !== next.theme) return false;
+  if (prev.onToggleToday !== next.onToggleToday) return false;
+  if (prev.onPressCard !== next.onPressCard) return false;
+
+  const prevLogs = prev.habitLogs || (prev.logs ? prev.logs[prev.habit.id] : undefined);
+  const nextLogs = next.habitLogs || (next.logs ? next.logs[next.habit.id] : undefined);
+  if (prevLogs !== nextLogs) return false;
+
+  return true;
+}
+
+export const MiniSquareTile = memo(MiniSquareTileComponent, areMiniPropsEqual);
 
 const styles = StyleSheet.create({
   card: {

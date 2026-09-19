@@ -66,6 +66,7 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
   const isSelectedFuture = selectedDateStr > todayStr;
   const isSelectedCompleted = monthDays.find((d) => d.dateStr === selectedDateStr)?.isCompleted;
   const weekDays = language === 'en' ? WEEK_DAYS_EN : WEEK_DAYS_AR;
+  const isDark = theme.background.startsWith('#0') || theme.background === '#121212';
 
   // Calculate leading previous-month trailing days (Monday start: Mon=0 .. Sun=6)
   const leadingSlots = (firstDayOfWeek + 6) % 7;
@@ -147,12 +148,12 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
                     : d.isSlip
                     ? styles.slipDayBox
                     : isComp
-                    ? [styles.completedDayBox, { backgroundColor: `${habitColor}35` }]
+                    ? [styles.completedDayBox, { backgroundColor: isDark ? `${habitColor}35` : `${habitColor}18` }]
                     : isToday
                     ? [styles.todayOutlineBox, { borderColor: habitColor }]
                     : styles.uncompletedDayBox,
                   isSelected && !isComp && !isToday && !d.isFrozen && !d.isSlip && {
-                    borderColor: 'rgba(255, 255, 255, 0.35)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.35)' : habitColor,
                     borderWidth: 1,
                   },
                 ]}
@@ -167,10 +168,10 @@ export const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({
                       style={[
                         styles.dayNumText,
                         {
-                          color: isComp || isToday
-                            ? '#FFFFFF'
+                          color: (isComp || isToday || isSelected)
+                            ? (isDark ? '#FFFFFF' : habitColor)
                             : theme.textDim,
-                          fontWeight: isComp || isToday ? '800' : '500',
+                          fontWeight: (isComp || isToday || isSelected) ? '800' : '500',
                           opacity: d.isFuture ? 0.35 : 1,
                         },
                       ]}
