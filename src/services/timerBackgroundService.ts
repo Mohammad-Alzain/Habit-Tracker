@@ -34,6 +34,7 @@ class TimerBackgroundService {
   private appStateSubscription: any = null;
   private notificationResponseSubscription: any = null;
   private isInitialized = false;
+  private activeTickerInterval: any = null;
 
   /**
    * Initializes background service, checks expired sessions, and binds AppState & notification listeners
@@ -155,14 +156,47 @@ class TimerBackgroundService {
       }
     );
 
-    // Show initial active notice
-    const activeMinutes = Math.ceil(remaining / 60);
-    await NotificationService.showTimerStarted(
-      'مؤقت التركيز نشط ⏳',
-      `جلسة لـ "${session.title}" (${activeMinutes} دقيقة متبقية)`
-    );
+    // Show initial active notice and start ticker
+    this.updateActiveNotification();
+    this.startLiveTicker();
 
     this.emit('started');
+  }
+
+  private startLiveTicker(): void {
+    this.stopLiveTicker();
+    this.activeTickerInterval = setInterval(() => {
+      if (this.currentSession && this.currentSession.isRunning) {
+        const remaining = Math.max(0, Math.round((this.currentSession.targetEndTime - Date.now()) / 1000));
+        if (remaining <= 0) {
+          this.stopLiveTicker();
+        } else {
+          this.updateActiveNotification();
+        }
+      } else {
+        this.stopLiveTicker();
+      }
+    }, 10000); // update live notification every 10s
+  }
+
+  private stopLiveTicker(): void {
+    if (this.activeTickerInterval) {
+      clearInterval(this.activeTickerInterval);
+      this.activeTickerInterval = null;
+    }
+  }
+
+  private async updateActiveNotification(): Promise<void> {
+    if (!this.currentSession || !this.currentSession.isRunning) return;
+    const remaining = Math.max(0, Math.round((this.currentSession.targetEndTime - Date.now()) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const timeFormatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    await NotificationService.showTimerStarted(
+      `مؤقت التركيز نشط ⏳ (${timeFormatted})`,
+      `جلسة لـ "${this.currentSession.title}"`
+    );
   }
 
   /**
@@ -171,6 +205,7 @@ class TimerBackgroundService {
   public async pauseSession(secondsRemaining: number): Promise<void> {
     if (!this.currentSession) return;
 
+    this.stopLiveTicker();
     this.currentSession.isRunning = false;
     this.currentSession.secondsRemaining = Math.max(0, Math.round(secondsRemaining));
     this.currentSession.targetEndTime = Date.now() + (this.currentSession.secondsRemaining * 1000);
@@ -208,6 +243,7 @@ class TimerBackgroundService {
    * Clears the current timer session without completing
    */
   public async clearSession(): Promise<void> {
+    this.stopLiveTicker();
     this.currentSession = null;
     await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
     await NotificationService.cancelTimerNotifications();

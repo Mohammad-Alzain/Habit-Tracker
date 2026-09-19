@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { soundService } from '../../../services/soundService';
 import { hapticService } from '../../../services/hapticService';
+import { timerBackgroundService } from '../../../services/timerBackgroundService';
 
 interface UseCountdownTimerProps {
   initialMinutes: number;
@@ -24,8 +25,19 @@ export function useCountdownTimer({
   const intervalRef = useRef<any>(null);
   const targetEndTimeRef = useRef<number | null>(null);
 
-  // Initialize seconds on totalSeconds change
+  // Initialize or restore active session on mount / totalSeconds change
   useEffect(() => {
+    const activeSession = timerBackgroundService.getSession();
+    if (activeSession && activeSession.isRunning && activeSession.targetEndTime > Date.now()) {
+      const remaining = Math.max(0, Math.round((activeSession.targetEndTime - Date.now()) / 1000));
+      if (remaining > 0) {
+        setSecondsLeft(remaining);
+        setIsRunning(true);
+        targetEndTimeRef.current = activeSession.targetEndTime;
+        return;
+      }
+    }
+
     setSecondsLeft(totalSeconds);
     setIsRunning(false);
     targetEndTimeRef.current = null;

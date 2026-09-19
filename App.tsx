@@ -15,6 +15,7 @@ import { useHabitStore, habitStore } from './src/store/habitStore';
 import { DARK_THEME, LIGHT_THEME } from './src/constants/theme';
 import { Habit, HabitType, HabitCategory, TimeOfDay, HabitGoal, HabitMode, TrackingType, HabitFrequency, DayOfWeek } from './src/types/habit';
 import { FloatingDock } from './src/components/FloatingDock';
+import { FloatingActiveTimerPill } from './src/components/FloatingActiveTimerPill';
 import { HabitsScreen } from './src/screens/HabitsScreen';
 import { AnalyticsScreen } from './src/screens/AnalyticsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -278,6 +279,19 @@ export default function App() {
               viewMode={viewMode}
               onChangeViewMode={(m) => habitStore.setViewMode(m)}
               theme={theme}
+            />
+
+            {/* Persistent Active Timer Pill */}
+            <FloatingActiveTimerPill
+              theme={theme}
+              onPressPill={(session) => {
+                if (session.isSubTask) {
+                  setRoadmapModalVisible(true);
+                } else {
+                  const habit = habits.find((h) => h.id === session.habitId);
+                  if (habit) setActiveTimerHabit(habit);
+                }
+              }}
             />
 
         {/* Modal: Habit Create / Edit matching Images 2 & 3 */}
