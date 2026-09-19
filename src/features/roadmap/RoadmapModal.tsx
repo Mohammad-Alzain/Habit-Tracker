@@ -9,6 +9,8 @@ import { isRTL, AppLanguage } from '../../utils/i18n';
 import { hapticService } from '../../services/hapticService';
 import { FULL_SCREEN_SAFE_TOP } from '../../constants/layout';
 import { TaskTimerModal, ActiveTimerSession } from '../../components/TaskTimerModal';
+import { ConfirmReplaceTimerModal } from '../../components/common/ConfirmReplaceTimerModal';
+import { timerBackgroundService } from '../../services/timerBackgroundService';
 import { useRoadmap } from './hooks/useRoadmap';
 import { QuestTrailView } from './components/QuestTrailView';
 import { KanbanBoardView } from './components/KanbanBoardView';
@@ -49,12 +51,51 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
   const [viewMode, setViewMode] = useState<RoadmapViewMode>('quest_trail');
   const [addingSubTaskHabitId, setAddingSubTaskHabitId] = useState<string | null>(null);
   const [activeTimerSession, setActiveTimerSession] = useState<ActiveTimerSession | null>(null);
+  const [pendingTimerSession, setPendingTimerSession] = useState<ActiveTimerSession | null>(null);
 
   React.useEffect(() => {
     if (initialTimerSession) {
       setActiveTimerSession(initialTimerSession);
     }
   }, [initialTimerSession]);
+
+  const handleStartTimerRequest = (requestedSession: ActiveTimerSession) => {
+    const currentBgSession = timerBackgroundService.getSession();
+    
+    // Check if clicking the EXACT SAME subtask/task that is already running
+    if (
+      currentBgSession &&
+      currentBgSession.isRunning &&
+      currentBgSession.habitId === requestedSession.habitId &&
+      currentBgSession.subTaskId === requestedSession.subTaskId
+    ) {
+      // Re-open active timer dialog directly without asking to cancel!
+      setActiveTimerSession(requestedSession);
+      return;
+    }
+
+    // If a DIFFERENT timer is running, show custom confirmation dialog
+    if (currentBgSession && currentBgSession.isRunning) {
+      setPendingTimerSession(requestedSession);
+      return;
+    }
+
+    // Otherwise, start requested timer directly
+    setActiveTimerSession(requestedSession);
+  };
+
+  const handleConfirmReplaceTimer = async () => {
+    if (pendingTimerSession) {
+      const currentBgSession = timerBackgroundService.getSession();
+      if (currentBgSession) {
+        const remaining = Math.max(0, Math.round((currentBgSession.targetEndTime - Date.now()) / 1000));
+        await timerBackgroundService.pauseSession(remaining);
+        await timerBackgroundService.clearSession();
+      }
+      setActiveTimerSession(pendingTimerSession);
+      setPendingTimerSession(null);
+    }
+  };
 
   const { todayStr, activeHabits, days, todayStats } = useRoadmap(
     habits,
@@ -228,7 +269,7 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
             onToggleSubTask={onToggleSubTask}
             onToggleHabitDay={onToggleHabitDay}
             onAddSubTask={onAddSubTask}
-            onStartTimer={setActiveTimerSession}
+            onStartTimer={handleStartTimerRequest}
           />
         )}
 
@@ -243,7 +284,7 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
             todayStr={todayStr}
             onToggleSubTask={onToggleSubTask}
             onToggleHabitDay={onToggleHabitDay}
-            onStartTimer={setActiveTimerSession}
+            onStartTimer={handleStartTimerRequest}
           />
         )}
 
@@ -262,7 +303,7 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
             onToggleSubTask={onToggleSubTask}
             onToggleHabitDay={onToggleHabitDay}
             onAddSubTask={onAddSubTask}
-            onStartTimer={setActiveTimerSession}
+            onStartTimer={handleStartTimerRequest}
           />
         )}
 
@@ -282,6 +323,16 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
             }
             setActiveTimerSession(null);
           }}
+        />
+
+        {/* Custom Frosted Glass Confirmation Modal for Replace Timer */}
+        <ConfirmReplaceTimerModal
+          visible={!!pendingTimerSession}
+          theme={theme}
+          runningTitle={timerBackgroundService.getSession()?.title || 'مؤقت نشط'}
+          newTitle={pendingTimerSession?.title || 'المهمة الجديدة'}
+          onConfirm={handleConfirmReplaceTimer}
+          onCancel={() => setPendingTimerSession(null)}
         />
       </View>
     </Modal>

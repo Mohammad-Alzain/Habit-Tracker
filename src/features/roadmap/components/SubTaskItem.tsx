@@ -48,51 +48,23 @@ export const SubTaskItem: React.FC<SubTaskItemProps> = ({
 
     // If sub-task has estimated duration and is not completed yet, prompt timer clock
     if (!isCompleted && subTask.estimatedMinutes && subTask.estimatedMinutes > 0 && onStartTimer) {
-      const activeSession = timerBackgroundService.getSession();
-      
-      const launchNewTimer = () => {
-        hapticService.medium();
-        const mins = subTask.estimatedMinutes || 15;
-        onStartTimer({
-          habitId,
-          subTaskId: subTask.id,
-          isSubTask: true,
-          title: subTask.title,
-          subtitle: habitName,
-          taskTitle: subTask.title,
-          habitName,
-          durationMinutes: mins,
-          minutes: mins,
-          estimatedMinutes: mins,
-          color: habitColor,
-          icon: habitIcon,
-          dateStr,
-        });
-      };
-
-      if (activeSession && activeSession.isRunning) {
-        hapticService.warning();
-        Alert.alert(
-          'مؤقت نشط بداخل التطبيق ⏳',
-          `هناك مؤقت يعمل حالياً لجلسة "${activeSession.title}". عند الموافقة، سيتم إيقاف المؤقت الحالي عند الوقت الذي وصل إليه والبدء بالمؤقت الجديد.`,
-          [
-            { text: 'إلغاء', style: 'cancel' },
-            {
-              text: 'إيقاف وابدأ الجديد',
-              style: 'destructive',
-              onPress: async () => {
-                const remaining = Math.max(0, Math.round((activeSession.targetEndTime - Date.now()) / 1000));
-                await timerBackgroundService.pauseSession(remaining);
-                await timerBackgroundService.clearSession();
-                launchNewTimer();
-              },
-            },
-          ]
-        );
-        return;
-      }
-
-      launchNewTimer();
+      hapticService.medium();
+      const mins = subTask.estimatedMinutes || 15;
+      onStartTimer({
+        habitId,
+        subTaskId: subTask.id,
+        isSubTask: true,
+        title: subTask.title,
+        subtitle: habitName,
+        taskTitle: subTask.title,
+        habitName,
+        durationMinutes: mins,
+        minutes: mins,
+        estimatedMinutes: mins,
+        color: habitColor,
+        icon: habitIcon,
+        dateStr,
+      });
       return;
     }
 
