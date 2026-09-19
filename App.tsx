@@ -299,6 +299,7 @@ export default function App() {
                     color: '#FF6565',
                     icon: 'timer-outline',
                     dateStr: session.dateStr,
+                    timestamp: Date.now(),
                   });
                   setRoadmapModalVisible(true);
                 } else {

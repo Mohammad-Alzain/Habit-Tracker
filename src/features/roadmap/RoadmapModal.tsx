@@ -51,10 +51,10 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
   const [activeTimerSession, setActiveTimerSession] = useState<ActiveTimerSession | null>(null);
 
   React.useEffect(() => {
-    if (visible && initialTimerSession) {
+    if (initialTimerSession) {
       setActiveTimerSession(initialTimerSession);
     }
-  }, [visible, initialTimerSession]);
+  }, [initialTimerSession]);
 
   const { todayStr, activeHabits, days, todayStats } = useRoadmap(
     habits,
@@ -268,7 +268,7 @@ export const RoadmapModal: React.FC<RoadmapModalProps> = ({
 
         {/* Task Countdown Timer Modal */}
         <TaskTimerModal
-          key={activeTimerSession ? `${activeTimerSession.habitId}-${activeTimerSession.subTaskId || 'main'}-${activeTimerSession.dateStr}-${activeTimerSession.durationMinutes ?? activeTimerSession.minutes ?? 15}` : 'timer-closed'}
+          key={activeTimerSession ? `${activeTimerSession.habitId}-${activeTimerSession.subTaskId || 'main'}-${activeTimerSession.dateStr}-${(activeTimerSession as any).timestamp || Date.now()}` : 'timer-closed'}
           visible={!!activeTimerSession}
           session={activeTimerSession}
           theme={theme}
