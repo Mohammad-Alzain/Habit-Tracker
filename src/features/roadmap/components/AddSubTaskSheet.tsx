@@ -34,6 +34,9 @@ export const AddSubTaskSheet: React.FC<AddSubTaskSheetProps> = ({
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState('15');
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [reminderTime, setReminderTime] = useState('18:00');
+  const [calendarSync, setCalendarSync] = useState(true);
 
   const toggleDay = (day: DayOfWeek) => {
     hapticService.selection();
@@ -59,6 +62,9 @@ export const AddSubTaskSheet: React.FC<AddSubTaskSheetProps> = ({
       title: title.trim(),
       estimatedMinutes: isNaN(mins) || mins <= 0 ? undefined : mins,
       scheduleDays: selectedDays.length === 7 ? 'all' : selectedDays,
+      reminderEnabled,
+      reminderTime: reminderEnabled ? reminderTime : undefined,
+      calendarSync,
     });
   };
 
@@ -136,6 +142,71 @@ export const AddSubTaskSheet: React.FC<AddSubTaskSheetProps> = ({
             },
           ]}
         />
+      </View>
+
+      {/* Duolingo Style Reminder & Calendar Sync Settings */}
+      <View style={{ gap: 8, marginTop: 4, marginBottom: 8 }}>
+        {/* Reminder Toggle & Time Input */}
+        <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              hapticService.selection();
+              setReminderEnabled(!reminderEnabled);
+            }}
+            style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}
+          >
+            <Ionicons
+              name={reminderEnabled ? 'notifications' : 'notifications-outline'}
+              size={16}
+              color={reminderEnabled ? '#FF6565' : theme.textMuted}
+            />
+            <Text style={{ color: reminderEnabled ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
+              تنبيهات نمط دولينغو اليومية 🔔
+            </Text>
+          </TouchableOpacity>
+
+          {reminderEnabled && (
+            <TextInput
+              value={reminderTime}
+              onChangeText={setReminderTime}
+              placeholder="18:00"
+              placeholderTextColor={theme.textDim}
+              style={{
+                color: theme.text,
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+                borderWidth: 1,
+                borderRadius: 8,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                fontSize: 12,
+                fontWeight: '700',
+                width: 60,
+                textAlign: 'center',
+              }}
+            />
+          )}
+        </View>
+
+        {/* Calendar Sync Toggle */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => {
+            hapticService.selection();
+            setCalendarSync(!calendarSync);
+          }}
+          style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}
+        >
+          <Ionicons
+            name={calendarSync ? 'calendar' : 'calendar-outline'}
+            size={16}
+            color={calendarSync ? '#7C83FD' : theme.textMuted}
+          />
+          <Text style={{ color: calendarSync ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
+            ربط وإضافة لتقويم الهاتف والتذكيرات 📅
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.formButtonsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>

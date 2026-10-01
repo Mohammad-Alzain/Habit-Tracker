@@ -144,24 +144,59 @@ export const SubTaskItem: React.FC<SubTaskItemProps> = ({
         {subTask.title}
       </Text>
 
-      {/* Duration Badge - Single Clean Icon without duplicate emoji */}
-      {subTask.estimatedMinutes ? (
-        <View
-          style={[
-            styles.trailDurationTag,
-            {
-              backgroundColor: `${habitColor}15`,
-              borderColor: `${habitColor}30`,
-              borderWidth: 1,
-            },
-          ]}
-        >
-          <Ionicons name="time-outline" size={11} color={habitColor} />
-          <Text style={[styles.trailDurationText, { color: habitColor }]}>
-            {subTask.estimatedMinutes} د
-          </Text>
-        </View>
-      ) : null}
+      {/* Badges: Duration, Reminder, Calendar Sync */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        {subTask.reminderEnabled && subTask.reminderTime ? (
+          <View
+            style={[
+              styles.trailDurationTag,
+              {
+                backgroundColor: 'rgba(255, 101, 101, 0.12)',
+                borderColor: 'rgba(255, 101, 101, 0.3)',
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <Ionicons name="notifications-outline" size={11} color="#FF6565" />
+            <Text style={[styles.trailDurationText, { color: '#FF6565' }]}>
+              {subTask.reminderTime}
+            </Text>
+          </View>
+        ) : null}
+
+        {subTask.calendarSync !== false ? (
+          <View
+            style={[
+              styles.trailDurationTag,
+              {
+                backgroundColor: 'rgba(124, 131, 253, 0.12)',
+                borderColor: 'rgba(124, 131, 253, 0.3)',
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <Ionicons name="calendar-outline" size={11} color="#7C83FD" />
+          </View>
+        ) : null}
+
+        {subTask.estimatedMinutes ? (
+          <View
+            style={[
+              styles.trailDurationTag,
+              {
+                backgroundColor: `${habitColor}15`,
+                borderColor: `${habitColor}30`,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <Ionicons name="time-outline" size={11} color={habitColor} />
+            <Text style={[styles.trailDurationText, { color: habitColor }]}>
+              {subTask.estimatedMinutes} د
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </TouchableOpacity>
   );
 };

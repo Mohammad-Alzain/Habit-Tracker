@@ -43,6 +43,10 @@
         "translucent": true,
         "backgroundColor": "#00000000"
       },
+      "notification": {
+        "icon": "./assets/icon.png",
+        "color": "#7C83FD"
+      },
       "package": "com.mohammadalzainsteam.habittracker"
     },
     "web": {

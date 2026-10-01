@@ -23,6 +23,9 @@ export interface HabitSubTask {
   title: string;
   scheduleDays?: DayOfWeek[] | 'all'; // Days of week this sub-task is active: 0=Sun, 1=Mon, ..., 6=Sat
   estimatedMinutes?: number;
+  reminderEnabled?: boolean;
+  reminderTime?: string; // "HH:mm" e.g. "14:30"
+  calendarSync?: boolean; // Duolingo-style system calendar event sync flag
 }
 
 export interface Habit {

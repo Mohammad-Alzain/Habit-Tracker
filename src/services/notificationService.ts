@@ -204,6 +204,94 @@ export class NotificationService {
   }
 
   /**
+   * Schedule daily or scheduled-day Duolingo-style notification for a subtask/commitment
+   */
+  public static async scheduleSubTaskReminder(
+    habitId: string,
+    habitName: string,
+    subTask: import('../types/habit').HabitSubTask
+  ): Promise<string | null> {
+    if (!subTask.reminderEnabled || !subTask.reminderTime) {
+      await this.cancelSubTaskReminder(habitId, subTask.id);
+      return null;
+    }
+
+    try {
+      await this.init();
+      await this.cancelSubTaskReminder(habitId, subTask.id);
+
+      const parts = subTask.reminderTime.split(':');
+      if (parts.length < 2) return null;
+
+      const hour = parseInt(parts[0], 10);
+      const minute = parseInt(parts[1], 10);
+
+      // Duolingo-style motivational notification messages
+      const duolingoTitles = [
+        `لا تكسر سلسلتك اليوم! 🔥`,
+        `حان وقت التزام "${subTask.title}"! 🎯`,
+        `خطوة شجاعة جديدة في "${habitName}" 🚀`,
+        `لا تدع اليوم يمر دون إنجاز! ⚡`,
+      ];
+
+      const duolingoBodies = [
+        `دقيقتين فقط لإكمال "${subTask.title}". حافظ على تقدمك ولا تتراجع!`,
+        `التزامك بـ "${subTask.title}" ضمن عادة (${habitName}) يصنع الفرق الحقيقي اليوم.`,
+        `استمر في البناء! تفصلك خطوة واحدة عن إنهاء محطتك اليومية.`,
+      ];
+
+      const title = duolingoTitles[Math.floor(Math.random() * duolingoTitles.length)];
+      const body = duolingoBodies[Math.floor(Math.random() * duolingoBodies.length)];
+
+      if (Platform.OS === 'web' || checkIsExpoGo()) {
+        return `simulated-subtask-reminder-${habitId}-${subTask.id}`;
+      }
+
+      const Notifications = getNotificationsModule();
+      if (!Notifications) return null;
+
+      const trigger: any = {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+        channelId: 'habit-reminders',
+      };
+
+      const identifier = await Notifications.scheduleNotificationAsync({
+        identifier: `subtask-${habitId}-${subTask.id}`,
+        content: {
+          title,
+          body,
+          sound: true,
+          badge: 1,
+          data: { habitId, subTaskId: subTask.id, type: 'subtask_reminder' },
+        },
+        trigger,
+      });
+
+      return identifier;
+    } catch (err) {
+      console.warn(`Failed to schedule reminder for subtask ${subTask.id}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Cancel reminder for a subtask
+   */
+  public static async cancelSubTaskReminder(habitId: string, subTaskId: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web' || checkIsExpoGo()) return;
+      const Notifications = getNotificationsModule();
+      if (Notifications) {
+        await Notifications.cancelScheduledNotificationAsync(`subtask-${habitId}-${subTaskId}`).catch(() => {});
+      }
+    } catch (err) {
+      // Safe fallback
+    }
+  }
+
+  /**
    * Cancel reminder for a habit
    */
   public static async cancelHabitReminder(habitId: string): Promise<void> {

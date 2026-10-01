@@ -448,10 +448,12 @@ export const habitStore = {
       ...subTaskData,
       id: `st-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     };
+    let parentHabitName = '';
     state = {
       ...state,
       habits: state.habits.map((h) => {
         if (h.id === habitId) {
+          parentHabitName = h.name;
           return {
             ...h,
             subTasks: [...(h.subTasks || []), subTask],
@@ -462,14 +464,19 @@ export const habitStore = {
     };
     emitChange();
     schedulePersist();
+    if (subTask.reminderEnabled && subTask.reminderTime) {
+      NotificationService.scheduleSubTaskReminder(habitId, parentHabitName, subTask);
+    }
     return subTask;
   },
 
   updateSubTask(habitId: string, updatedSubTask: HabitSubTask): void {
+    let parentHabitName = '';
     state = {
       ...state,
       habits: state.habits.map((h) => {
         if (h.id === habitId) {
+          parentHabitName = h.name;
           return {
             ...h,
             subTasks: (h.subTasks || []).map((st) => (st.id === updatedSubTask.id ? updatedSubTask : st)),
@@ -480,6 +487,11 @@ export const habitStore = {
     };
     emitChange();
     schedulePersist();
+    if (updatedSubTask.reminderEnabled && updatedSubTask.reminderTime) {
+      NotificationService.scheduleSubTaskReminder(habitId, parentHabitName, updatedSubTask);
+    } else {
+      NotificationService.cancelSubTaskReminder(habitId, updatedSubTask.id);
+    }
   },
 
   deleteSubTask(habitId: string, subTaskId: string): void {
@@ -497,6 +509,7 @@ export const habitStore = {
     };
     emitChange();
     schedulePersist();
+    NotificationService.cancelSubTaskReminder(habitId, subTaskId);
   },
 
   adjustNumericHabit(habitId: string, dateStr: string = getTodayString(), delta: number): void {
