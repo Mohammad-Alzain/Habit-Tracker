@@ -13,6 +13,12 @@ interface SubTasksEditorProps {
   onChangeNewSubTaskMinutes: (min: string) => void;
   newSubTaskDays: DayOfWeek[];
   onToggleSubTaskDay: (day: DayOfWeek) => void;
+  newSubTaskReminderEnabled?: boolean;
+  onToggleNewSubTaskReminder?: (enabled: boolean) => void;
+  newSubTaskReminderTime?: string;
+  onChangeNewSubTaskReminderTime?: (time: string) => void;
+  newSubTaskCalendarSync?: boolean;
+  onToggleNewSubTaskCalendarSync?: (sync: boolean) => void;
   onAddSubTask: () => void;
   onRemoveSubTask: (id: string) => void;
   editingSubTaskId?: string | null;
@@ -39,6 +45,12 @@ export const SubTasksEditor: React.FC<SubTasksEditorProps> = ({
   onChangeNewSubTaskMinutes,
   newSubTaskDays,
   onToggleSubTaskDay,
+  newSubTaskReminderEnabled = true,
+  onToggleNewSubTaskReminder,
+  newSubTaskReminderTime = '18:00',
+  onChangeNewSubTaskReminderTime,
+  newSubTaskCalendarSync = true,
+  onToggleNewSubTaskCalendarSync,
   onAddSubTask,
   onRemoveSubTask,
   editingSubTaskId,
@@ -52,7 +64,7 @@ export const SubTasksEditor: React.FC<SubTasksEditorProps> = ({
         الالتزامات والمهام اليومية (خريطة المسار)
       </Text>
       <Text style={[styles.sectionSub, { color: theme.textDim }]}>
-        قسّم العادة إلى مهام محددة وخصص أيام وتوقيت كل مهمة
+        قسّم العادة إلى مهام محددة وخصص أيام وتوقيت وتنبيهات كل مهمة
       </Text>
 
       {/* Existing Sub-tasks List */}
@@ -117,6 +129,18 @@ export const SubTasksEditor: React.FC<SubTasksEditorProps> = ({
                       <>
                         <Ionicons name="time-outline" size={12} color={theme.textDim} style={{ marginLeft: 6 }} />
                         <Text style={[styles.stMeta, { color: theme.textMuted }]}>{st.estimatedMinutes} دقيقة</Text>
+                      </>
+                    )}
+                    {st.reminderEnabled && (
+                      <>
+                        <Ionicons name="notifications" size={12} color="#FF6565" style={{ marginLeft: 6 }} />
+                        <Text style={[styles.stMeta, { color: '#FF6565' }]}>{st.reminderTime || '18:00'}</Text>
+                      </>
+                    )}
+                    {st.calendarSync && (
+                      <>
+                        <Ionicons name="calendar" size={12} color="#7C83FD" style={{ marginLeft: 6 }} />
+                        <Text style={[styles.stMeta, { color: '#7C83FD' }]}>التقويم</Text>
                       </>
                     )}
                   </View>
@@ -191,6 +215,69 @@ export const SubTasksEditor: React.FC<SubTasksEditorProps> = ({
               </TouchableOpacity>
             );
           })}
+        </View>
+
+        {/* Duolingo Reminder & Calendar Sync Toggles inside Editor Card */}
+        <View style={{ gap: 8, marginTop: 4, marginBottom: 10 }}>
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                hapticService.selection();
+                onToggleNewSubTaskReminder?.(!newSubTaskReminderEnabled);
+              }}
+              style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}
+            >
+              <Ionicons
+                name={newSubTaskReminderEnabled ? 'notifications' : 'notifications-outline'}
+                size={16}
+                color={newSubTaskReminderEnabled ? '#FF6565' : theme.textMuted}
+              />
+              <Text style={{ color: newSubTaskReminderEnabled ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
+                تنبيهات نمط دولينغو اليومية 🔔
+              </Text>
+            </TouchableOpacity>
+
+            {newSubTaskReminderEnabled && (
+              <TextInput
+                value={newSubTaskReminderTime}
+                onChangeText={onChangeNewSubTaskReminderTime}
+                placeholder="18:00"
+                placeholderTextColor={theme.textDim}
+                style={{
+                  color: theme.text,
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                  borderWidth: 1,
+                  borderRadius: 8,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  fontSize: 12,
+                  fontWeight: '700',
+                  width: 60,
+                  textAlign: 'center',
+                }}
+              />
+            )}
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              hapticService.selection();
+              onToggleNewSubTaskCalendarSync?.(!newSubTaskCalendarSync);
+            }}
+            style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}
+          >
+            <Ionicons
+              name={newSubTaskCalendarSync ? 'calendar' : 'calendar-outline'}
+              size={16}
+              color={newSubTaskCalendarSync ? '#7C83FD' : theme.textMuted}
+            />
+            <Text style={{ color: newSubTaskCalendarSync ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
+              ربط وإضافة لتقويم الهاتف والتذكيرات 📅
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.bottomRow}>

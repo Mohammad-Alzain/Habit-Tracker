@@ -115,6 +115,12 @@ export const HabitModal: React.FC<HabitModalProps> = ({
     newSubTaskMinutes,
     setNewSubTaskMinutes,
     newSubTaskDays,
+    newSubTaskReminderEnabled,
+    setNewSubTaskReminderEnabled,
+    newSubTaskReminderTime,
+    setNewSubTaskReminderTime,
+    newSubTaskCalendarSync,
+    setNewSubTaskCalendarSync,
     addSubTask,
     removeSubTask,
     toggleSubTaskDay,
@@ -295,6 +301,12 @@ export const HabitModal: React.FC<HabitModalProps> = ({
             onChangeNewSubTaskMinutes={setNewSubTaskMinutes}
             newSubTaskDays={newSubTaskDays}
             onToggleSubTaskDay={toggleSubTaskDay}
+            newSubTaskReminderEnabled={newSubTaskReminderEnabled}
+            onToggleNewSubTaskReminder={setNewSubTaskReminderEnabled}
+            newSubTaskReminderTime={newSubTaskReminderTime}
+            onChangeNewSubTaskReminderTime={setNewSubTaskReminderTime}
+            newSubTaskCalendarSync={newSubTaskCalendarSync}
+            onToggleNewSubTaskCalendarSync={setNewSubTaskCalendarSync}
             onAddSubTask={addSubTask}
             onRemoveSubTask={removeSubTask}
             editingSubTaskId={editingSubTaskId}

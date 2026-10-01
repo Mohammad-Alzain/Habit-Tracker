@@ -110,10 +110,17 @@ export function useHabitForm(habitToEdit?: Habit | null) {
     setEditingSubTaskId(null);
   }, [habitToEdit]);
 
+  const [newSubTaskReminderEnabled, setNewSubTaskReminderEnabled] = useState(true);
+  const [newSubTaskReminderTime, setNewSubTaskReminderTime] = useState('18:00');
+  const [newSubTaskCalendarSync, setNewSubTaskCalendarSync] = useState(true);
+
   const startEditSubTask = (st: HabitSubTask) => {
     setEditingSubTaskId(st.id);
     setNewSubTaskTitle(st.title);
     setNewSubTaskMinutes(st.estimatedMinutes ? String(st.estimatedMinutes) : '15');
+    setNewSubTaskReminderEnabled(st.reminderEnabled !== undefined ? st.reminderEnabled : true);
+    setNewSubTaskReminderTime(st.reminderTime || '18:00');
+    setNewSubTaskCalendarSync(st.calendarSync !== undefined ? st.calendarSync : true);
     if (st.scheduleDays === 'all') {
       setNewSubTaskDays([0, 1, 2, 3, 4, 5, 6]);
     } else if (Array.isArray(st.scheduleDays)) {
@@ -126,6 +133,9 @@ export function useHabitForm(habitToEdit?: Habit | null) {
     setNewSubTaskTitle('');
     setNewSubTaskMinutes('15');
     setNewSubTaskDays([0, 1, 2, 3, 4, 5, 6]);
+    setNewSubTaskReminderEnabled(true);
+    setNewSubTaskReminderTime('18:00');
+    setNewSubTaskCalendarSync(true);
   };
 
   const addSubTask = () => {
@@ -142,6 +152,9 @@ export function useHabitForm(habitToEdit?: Habit | null) {
                 title: newSubTaskTitle.trim(),
                 estimatedMinutes: isNaN(mins) || mins <= 0 ? undefined : mins,
                 scheduleDays,
+                reminderEnabled: newSubTaskReminderEnabled,
+                reminderTime: newSubTaskReminderEnabled ? newSubTaskReminderTime : undefined,
+                calendarSync: newSubTaskCalendarSync,
               }
             : st
         )
@@ -153,6 +166,9 @@ export function useHabitForm(habitToEdit?: Habit | null) {
         title: newSubTaskTitle.trim(),
         estimatedMinutes: isNaN(mins) || mins <= 0 ? undefined : mins,
         scheduleDays,
+        reminderEnabled: newSubTaskReminderEnabled,
+        reminderTime: newSubTaskReminderEnabled ? newSubTaskReminderTime : undefined,
+        calendarSync: newSubTaskCalendarSync,
       };
       setSubTasks((prev) => [...prev, newTask]);
     }
@@ -160,6 +176,9 @@ export function useHabitForm(habitToEdit?: Habit | null) {
     setNewSubTaskTitle('');
     setNewSubTaskMinutes('15');
     setNewSubTaskDays([0, 1, 2, 3, 4, 5, 6]);
+    setNewSubTaskReminderEnabled(true);
+    setNewSubTaskReminderTime('18:00');
+    setNewSubTaskCalendarSync(true);
   };
 
   const removeSubTask = (id: string) => {
@@ -236,6 +255,12 @@ export function useHabitForm(habitToEdit?: Habit | null) {
     newSubTaskMinutes,
     setNewSubTaskMinutes,
     newSubTaskDays,
+    newSubTaskReminderEnabled,
+    setNewSubTaskReminderEnabled,
+    newSubTaskReminderTime,
+    setNewSubTaskReminderTime,
+    newSubTaskCalendarSync,
+    setNewSubTaskCalendarSync,
     addSubTask,
     removeSubTask,
     toggleSubTaskDay,
