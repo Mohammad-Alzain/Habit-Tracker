@@ -5,199 +5,381 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Share,
-  Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Habit, HabitLogs } from '../types/habit';
 import { ThemeColors } from '../constants/theme';
-import { calculateHabitStats } from '../utils/streakUtils';
-import { getTodayString, parseISODate, getArabicMonth } from '../utils/dateUtils';
-import { ModalHeader } from './ModalHeader';
 import { BlurOverlay } from './common/BlurOverlay';
-import { t, isRTL, AppLanguage } from '../utils/i18n';
-import { DIALOG_SAFE_TOP, DIALOG_SAFE_BOTTOM } from '../constants/layout';
+import { ModalHeader } from './ModalHeader';
+import { AppLanguage, isRTL } from '../utils/i18n';
+import { calculateHabitStats, calculateGlobalStats } from '../utils/streakUtils';
+import { getLastNDays, getTodayString } from '../utils/dateUtils';
+import { hapticService } from '../services/hapticService';
+import { soundService } from '../services/soundService';
+import { habitStore } from '../store/habitStore';
+import { DIALOG_SAFE_BOTTOM } from '../constants/layout';
 
 interface ShareHabitCardModalProps {
   visible: boolean;
-  habit: Habit | null;
+  habits?: Habit[];
+  habit?: Habit | null;
   logs: HabitLogs;
   theme: ThemeColors;
   language?: AppLanguage;
+  initialHabitId?: string;
   onClose: () => void;
 }
 
+
+type CardThemeId = 'neon' | 'sunset' | 'aurora' | 'space';
+
+interface CardThemeConfig {
+  id: CardThemeId;
+  name: string;
+  gradientBg: string;
+  borderColor: string;
+  accentColor: string;
+  textColor: string;
+  tagBg: string;
+}
+
+const CARD_THEMES: CardThemeConfig[] = [
+  {
+    id: 'neon',
+    name: 'نيون سيبر',
+    gradientBg: '#0F172A',
+    borderColor: '#38BDF8',
+    accentColor: '#38BDF8',
+    textColor: '#F8FAFC',
+    tagBg: 'rgba(56, 189, 248, 0.15)',
+  },
+  {
+    id: 'sunset',
+    name: 'شفق الغروب',
+    gradientBg: '#1A0E1A',
+    borderColor: '#F97316',
+    accentColor: '#FB923C',
+    textColor: '#FFF7ED',
+    tagBg: 'rgba(249, 115, 22, 0.15)',
+  },
+  {
+    id: 'aurora',
+    name: 'شفق قطبي',
+    gradientBg: '#0A1C16',
+    borderColor: '#10B981',
+    accentColor: '#34D399',
+    textColor: '#ECFDF5',
+    tagBg: 'rgba(16, 185, 129, 0.15)',
+  },
+  {
+    id: 'space',
+    name: 'فضاء ملكي',
+    gradientBg: '#14141E',
+    borderColor: '#EAB308',
+    accentColor: '#FACC15',
+    textColor: '#FEFCE8',
+    tagBg: 'rgba(234, 179, 8, 0.15)',
+  },
+];
+
 export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
   visible,
+  habits,
   habit,
   logs,
   theme,
   language = 'ar',
+  initialHabitId,
   onClose,
 }) => {
   const rtl = isRTL(language);
-  const [copied, setCopied] = useState(false);
+  const storeHabits = habits || habitStore.getSnapshot().habits;
+  const activeHabits = (habit ? [habit, ...storeHabits.filter((h) => h.id !== habit.id)] : storeHabits).filter((h) => !h.archived);
+  const [selectedHabitId, setSelectedHabitId] = useState<string>(
+    habit?.id || initialHabitId || activeHabits[0]?.id || 'global'
+  );
+  const [selectedThemeId, setSelectedThemeId] = useState<CardThemeId>('neon');
 
-  if (!habit) return null;
-  const stats = calculateHabitStats(habit, logs);
-  const todayStr = getTodayString();
-  const todayDate = parseISODate(todayStr);
-
-  // Generate 6x5 mini heatmap
-  const colsCount = 6;
-  const rowsCount = 5;
-  const habitLogs = logs[habit.id] || {};
-  const threshold = habit.targetValue || habit.targetPerDay || 1;
-
-  const columns: { isCompleted: boolean }[][] = [];
-  for (let c = 0; c < colsCount; c++) {
-    const col: { isCompleted: boolean }[] = [];
-    for (let r = 0; r < rowsCount; r++) {
-      const daysAgo = (colsCount - 1 - c) * rowsCount + (rowsCount - 1 - r);
-      const d = new Date(todayDate);
-      d.setDate(todayDate.getDate() - daysAgo);
-
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dStr = `${y}-${m}-${day}`;
-
-      col.push({
-        isCompleted: (habitLogs[dStr] || 0) >= threshold,
-      });
+  React.useEffect(() => {
+    if (habit) {
+      setSelectedHabitId(habit.id);
+    } else if (initialHabitId) {
+      setSelectedHabitId(initialHabitId);
     }
-    columns.push(col);
-  }
+  }, [habit, initialHabitId]);
 
-  const handleCopySummary = async () => {
-    const summary = `مسار إنجاز عادة: ${habit.name}\n` +
-      `الستريك الحالي: ${stats.currentStreak} أيام متتالية\n` +
-      `أفضل ستريك: ${stats.longestStreak} يوماً\n` +
-      `إجمالي الإنجازات: ${stats.totalCompletions} مرة\n` +
-      `نسبة النجاح: ${stats.completionRate30Days}%\n` +
-      `تطبيق Habit Flow`;
+  const cardTheme = CARD_THEMES.find((t) => t.id === selectedThemeId) || CARD_THEMES[0];
+  const isGlobal = selectedHabitId === 'global';
+  const selectedHabit = activeHabits.find((h) => h.id === selectedHabitId);
 
-    await Clipboard.setStringAsync(summary);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
-  };
+  // Compute stats
+  const globalStats = calculateGlobalStats(storeHabits, logs);
+  const habitStats = selectedHabit ? calculateHabitStats(selectedHabit, logs) : null;
 
-  const handleShareSystem = async () => {
+  const currentStreak = isGlobal ? globalStats.bestStreakAll : habitStats?.currentStreak || 0;
+  const longestStreak = isGlobal ? globalStats.bestStreakAll : habitStats?.longestStreak || 0;
+  const completionRate = isGlobal ? globalStats.todayCompletionRate : habitStats?.completionRate30Days || 0;
+  const totalDone = isGlobal ? globalStats.totalCompletionsAll : habitStats?.totalCompletions || 0;
+
+  const last14Days = getLastNDays(14).reverse();
+  const habitLogs = selectedHabit ? logs[selectedHabit.id] || {} : {};
+  const habitTarget = selectedHabit?.targetValue || selectedHabit?.targetPerDay || 1;
+
+  const titleName = isGlobal ? 'المحصلة الإجمالية للعادات' : selectedHabit?.name || 'عادتي';
+  const habitColor = isGlobal ? '#7C83FD' : selectedHabit?.color || '#38BDF8';
+
+  const shareText = `🔥 إنجاز جديد في تطبيقي لمتابعة العادات!
+🎯 العادة: ${titleName}
+⚡ الستريك الحالي: ${currentStreak} يوماً متواصلاً!
+🏆 أطول ستريك: ${longestStreak} يوماً
+📊 نسبة الالتزام: ${completionRate}%
+✨ إجمالي الإنجازات: ${totalDone} يوماً
+
+"الاستمرار اليومي هو السر الحقيقي للتحول!" 🚀
+#بناء_العادات #ستريك #انضباط`;
+
+  const handleNativeShare = async () => {
+    hapticService.success();
+    soundService.playComplete();
     try {
       await Share.share({
-        message: `أنا مستمر في عادة "${habit.name}" منذ ${stats.currentStreak} أيام متتالية! أنجزت العادة ${stats.totalCompletions} مرة بنسبة نجاح ${stats.completionRate30Days}%.`,
-        title: `إنجاز عادة ${habit.name}`,
+        message: shareText,
+        title: `إنجازي في عادة ${titleName}`,
       });
-    } catch (err) {
-      // Safe fallback
-    }
+    } catch {}
+  };
+
+  const handleCopyClipboard = async () => {
+    hapticService.light();
+    soundService.playTap();
+    await Clipboard.setStringAsync(shareText);
+    Alert.alert('📋 تم النسخ', 'تم نسخ نص بطاقة الإنجاز لحافظتك بنجاح!');
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <BlurOverlay theme={theme} style={styles.overlay}>
         <View
           style={[
-            styles.modalCard,
+            styles.card,
             {
               backgroundColor: theme.card,
               borderColor: theme.border,
-              shadowColor: theme.text === '#FFFFFF' ? '#000000' : '#0F172A',
-              shadowOffset: { width: 0, height: 12 },
-              shadowOpacity: theme.text === '#FFFFFF' ? 0.35 : 0.12,
-              shadowRadius: 24,
-              elevation: 14,
             },
           ]}
         >
-          {/* Header */}
           <ModalHeader
-            title={t('shareTitle', language)}
-            icon="sparkles"
-            iconColor="#F1C40F"
+            title="بطاقة المشاركة الجمالية 📸"
+            onClose={onClose}
             theme={theme}
             isRTL={rtl}
-            onClose={onClose}
           />
 
-          {/* Visual Share Card */}
-          <View style={[styles.shareCardVisual, { backgroundColor: theme.surface, borderColor: `${habit.color}50` }]}>
-            {/* Top Habit Row */}
-            <View style={styles.cardTopRow}>
-              <View style={[styles.habitIconBox, { backgroundColor: `${habit.color}25`, borderColor: `${habit.color}60` }]}>
-                <Ionicons name={(habit.icon as any) || 'flame'} size={28} color={habit.color} />
+
+          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+            {/* Habit Picker Chips */}
+            <Text style={[styles.sectionLabel, { color: theme.textMuted, textAlign: rtl ? 'right' : 'left' }]}>
+              اختر العادة المراد مشاركتها:
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.habitScroll, { flexDirection: rtl ? 'row-reverse' : 'row' }]}
+            >
+              <TouchableOpacity
+                onPress={() => setSelectedHabitId('global')}
+                style={[
+                  styles.habitChip,
+                  {
+                    backgroundColor: isGlobal ? '#7C83FD' : theme.surface,
+                    borderColor: isGlobal ? '#7C83FD' : theme.border,
+                  },
+                ]}
+              >
+                <Ionicons name="trophy" size={14} color={isGlobal ? '#FFFFFF' : theme.text} />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isGlobal ? '#FFFFFF' : theme.text }}>
+                  الإجمالي العام
+                </Text>
+              </TouchableOpacity>
+
+              {activeHabits.map((h) => {
+                const isSelected = h.id === selectedHabitId;
+                return (
+                  <TouchableOpacity
+                    key={h.id}
+                    onPress={() => setSelectedHabitId(h.id)}
+                    style={[
+                      styles.habitChip,
+                      {
+                        backgroundColor: isSelected ? h.color : theme.surface,
+                        borderColor: isSelected ? h.color : theme.border,
+                      },
+                    ]}
+                  >
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isSelected ? '#FFFFFF' : h.color }} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#FFFFFF' : theme.text }}>
+                      {h.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Theme Selector Pills */}
+            <View style={[styles.themesRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              {CARD_THEMES.map((ct) => {
+                const isSelected = ct.id === selectedThemeId;
+                return (
+                  <TouchableOpacity
+                    key={ct.id}
+                    onPress={() => {
+                      hapticService.selection();
+                      setSelectedThemeId(ct.id);
+                    }}
+                    style={[
+                      styles.themePill,
+                      {
+                        backgroundColor: isSelected ? ct.accentColor : theme.surface,
+                        borderColor: isSelected ? ct.accentColor : theme.border,
+                      },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: isSelected ? '#000000' : theme.textMuted }}>
+                      {ct.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Aesthetic Card Preview */}
+            <View
+              style={[
+                styles.previewCardContainer,
+                {
+                  backgroundColor: cardTheme.gradientBg,
+                  borderColor: cardTheme.borderColor,
+                },
+              ]}
+            >
+              {/* Header Branding */}
+              <View style={[styles.cardHeaderBranding, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.brandPill, { backgroundColor: cardTheme.tagBg }]}>
+                  <Ionicons name="sparkles" size={12} color={cardTheme.accentColor} />
+                  <Text style={[styles.brandPillText, { color: cardTheme.accentColor }]}>
+                    HABIT FLOW ✦ إنجاز
+                  </Text>
+                </View>
+                <Text style={[styles.cardDateStr, { color: 'rgba(255,255,255,0.45)' }]}>
+                  {getTodayString()}
+                </Text>
               </View>
 
-              <View style={styles.habitTextCol}>
-                <Text style={[styles.habitTitle, { color: theme.text }]}>{habit.name}</Text>
-                <Text style={[styles.habitDate, { color: theme.textDim }]}>
-                  {getArabicMonth(todayDate.getMonth())} {todayDate.getFullYear()}
+              {/* Title & Icon */}
+              <View style={[styles.cardTitleSection, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.cardIconBox, { backgroundColor: `${habitColor}25`, borderColor: habitColor }]}>
+                  <Ionicons name={isGlobal ? 'trophy' : (selectedHabit?.icon as any || 'flame')} size={26} color={habitColor} />
+                </View>
+                <View style={{ flex: 1, alignItems: rtl ? 'flex-end' : 'flex-start' }}>
+                  <Text style={[styles.cardHabitTitle, { color: cardTheme.textColor }]}>
+                    {titleName}
+                  </Text>
+                  <Text style={[styles.cardHabitSub, { color: 'rgba(255,255,255,0.6)' }]}>
+                    {isGlobal ? 'محصلة الالتزام عبر جميع الأهداف' : `التكرار اليومي • مسار النجاح`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Huge Flame Streak Display */}
+              <View style={styles.streakCenterBox}>
+                <View style={[styles.flameOuterCircle, { borderColor: cardTheme.accentColor }]}>
+                  <Text style={styles.flameEmoji}>🔥</Text>
+                  <Text style={[styles.streakNumberText, { color: cardTheme.textColor }]}>
+                    {currentStreak}
+                  </Text>
+                  <Text style={[styles.streakLabelText, { color: cardTheme.accentColor }]}>
+                    أيام ستريك متواصلة
+                  </Text>
+                </View>
+              </View>
+
+              {/* Stats Grid */}
+              <View style={[styles.statsGridRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.miniStatBox, { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: cardTheme.tagBg }]}>
+                  <Text style={[styles.miniStatVal, { color: cardTheme.accentColor }]}>{longestStreak}d</Text>
+                  <Text style={styles.miniStatLabel}>أطول ستريك</Text>
+                </View>
+                <View style={[styles.miniStatBox, { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: cardTheme.tagBg }]}>
+                  <Text style={[styles.miniStatVal, { color: '#2ED573' }]}>{completionRate}%</Text>
+                  <Text style={styles.miniStatLabel}>الالتزام</Text>
+                </View>
+                <View style={[styles.miniStatBox, { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: cardTheme.tagBg }]}>
+                  <Text style={[styles.miniStatVal, { color: '#FFA502' }]}>{totalDone}</Text>
+                  <Text style={styles.miniStatLabel}>إجمالي الأيام</Text>
+                </View>
+              </View>
+
+              {/* 14 Days Visual Dots Trail */}
+              {!isGlobal && (
+                <View style={styles.heatmapDotsSection}>
+                  <Text style={[styles.dotsSectionTitle, { color: 'rgba(255,255,255,0.5)', textAlign: rtl ? 'right' : 'left' }]}>
+                    آخر 14 يوماً:
+                  </Text>
+                  <View style={[styles.dotsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+                    {last14Days.map((dStr) => {
+                      const count = habitLogs[dStr] || 0;
+                      const isDone = count >= habitTarget;
+                      return (
+                        <View
+                          key={dStr}
+                          style={[
+                            styles.heatDot,
+                            {
+                              backgroundColor: isDone ? habitColor : 'rgba(255,255,255,0.1)',
+                              borderColor: isDone ? '#FFFFFF' : 'transparent',
+                              borderWidth: isDone ? 0.8 : 0,
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* Quote Footer */}
+              <View style={[styles.cardFooterQuote, { borderTopColor: cardTheme.tagBg }]}>
+                <Text style={styles.cardQuoteText}>
+                  "التميز ليس عملاً منفرداً بل عادة متجذرة."
                 </Text>
               </View>
             </View>
 
-            {/* Metrics Pills Grid */}
-            <View style={styles.metricsRow}>
-              <View style={[styles.metricPill, { backgroundColor: `${habit.color}15`, borderColor: `${habit.color}35` }]}>
-                <Ionicons name="flame" size={14} color={habit.color} />
-                <Text style={[styles.metricValue, { color: habit.color }]}>{stats.currentStreak} ستريك</Text>
-              </View>
+            {/* Sharing Action Buttons */}
+            <View style={[styles.actionButtonsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleNativeShare}
+                style={[styles.shareActionBtn, { backgroundColor: '#7C83FD' }]}
+              >
+                <Ionicons name="share-social" size={18} color="#FFFFFF" />
+                <Text style={styles.shareActionBtnText}>مشاركة الإنجاز 🚀</Text>
+              </TouchableOpacity>
 
-              <View style={[styles.metricPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <Ionicons name="trophy" size={14} color="#F1C40F" />
-                <Text style={[styles.metricValue, { color: theme.text }]}>أفضل {stats.longestStreak}</Text>
-              </View>
-
-              <View style={[styles.metricPill, { backgroundColor: 'rgba(46, 204, 113, 0.15)', borderColor: 'rgba(46, 204, 113, 0.35)' }]}>
-                <Ionicons name="fitness" size={14} color="#2ECC71" />
-                <Text style={[styles.metricValue, { color: '#2ECC71' }]}>قوة {stats.habitStrengthScore}%</Text>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleCopyClipboard}
+                style={[styles.copyActionBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              >
+                <Ionicons name="copy-outline" size={17} color={theme.text} />
+                <Text style={[styles.copyActionBtnText, { color: theme.text }]}>نسخ النص</Text>
+              </TouchableOpacity>
             </View>
-
-            {/* Mini Heatmap Matrix */}
-            <View style={styles.heatmapWrapper}>
-              {columns.map((col, cIdx) => (
-                <View key={`hc-${cIdx}`} style={styles.heatmapCol}>
-                  {col.map((cell, rIdx) => (
-                    <View
-                      key={`hr-${rIdx}`}
-                      style={[
-                        styles.heatmapDot,
-                        {
-                          backgroundColor: cell.isCompleted ? habit.color : theme.emptyCell,
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-              ))}
-            </View>
-
-            {/* Footer Watermark */}
-            <View style={styles.watermarkRow}>
-              <Ionicons name="shield-checkmark-outline" size={13} color={theme.textDim} />
-              <Text style={[styles.watermarkText, { color: theme.textDim }]}>Habit Flow • مسار العادات المستمر</Text>
-            </View>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity onPress={handleShareSystem} style={[styles.primaryShareBtn, { backgroundColor: habit.color }]}>
-              <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.primaryShareText}>مشاركة البطاقة</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleCopySummary}
-              style={[styles.secondaryCopyBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            >
-              <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? '#10B981' : theme.text} />
-              <Text style={[styles.secondaryCopyText, { color: copied ? '#10B981' : theme.text }]}>
-                {copied ? 'تم النسخ!' : 'نسخ النص'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </BlurOverlay>
     </Modal>
@@ -207,150 +389,216 @@ export const ShareHabitCardModal: React.FC<ShareHabitCardModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: DIALOG_SAFE_TOP,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  card: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    maxHeight: '92%',
+    paddingTop: 16,
     paddingBottom: DIALOG_SAFE_BOTTOM,
+  },
+  body: {
+    flexGrow: 1,
+  },
+  bodyContent: {
     paddingHorizontal: 20,
+    paddingBottom: 24,
   },
-  modalCard: {
-    width: '100%',
-    borderRadius: 24,
-    borderWidth: 1.2,
-    padding: 18,
-  },
-  header: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  headerTitleRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  closeCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareCardVisual: {
-    borderRadius: 20,
-    borderWidth: 1.5,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardTopRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 14,
-  },
-  habitIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  habitTextCol: {
-    flex: 1,
-  },
-  habitTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    textAlign: 'right',
-  },
-  habitDate: {
+  sectionLabel: {
     fontSize: 12,
-    textAlign: 'right',
-    marginTop: 2,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 8,
   },
-  metricsRow: {
-    flexDirection: 'row-reverse',
+  habitScroll: {
     gap: 8,
-    marginBottom: 16,
+    paddingBottom: 10,
   },
-  metricPill: {
-    flexDirection: 'row-reverse',
+  habitChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  themesRow: {
+    gap: 8,
+    marginVertical: 10,
+    justifyContent: 'center',
+  },
+  themePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
   },
-  metricValue: {
-    fontSize: 11.5,
-    fontWeight: '800',
+  previewCardContainer: {
+    borderRadius: 24,
+    borderWidth: 1.5,
+    padding: 20,
+    marginVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  heatmapWrapper: {
-    flexDirection: 'row-reverse',
+  cardHeaderBranding: {
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-    marginBottom: 12,
-  },
-  heatmapCol: {
-    flexDirection: 'column',
-    gap: 4,
-  },
-  heatmapDot: {
-    width: 13,
-    height: 13,
-    borderRadius: 3.5,
-  },
-  watermarkRow: {
-    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    marginBottom: 16,
   },
-  watermarkText: {
-    fontSize: 10.5,
+  brandPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  brandPillText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  cardDateStr: {
+    fontSize: 11,
     fontWeight: '600',
   },
-  actionsRow: {
-    flexDirection: 'row-reverse',
-    gap: 10,
+  cardTitleSection: {
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 18,
   },
-  primaryShareBtn: {
-    flex: 1.2,
-    flexDirection: 'row-reverse',
+  cardIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 14,
   },
-  primaryShareText: {
-    color: '#FFFFFF',
+  cardHabitTitle: {
+    fontSize: 18,
     fontWeight: '800',
-    fontSize: 13,
+    marginBottom: 2,
   },
-  secondaryCopyBtn: {
-    flex: 0.9,
-    flexDirection: 'row-reverse',
+  cardHabitSub: {
+    fontSize: 11.5,
+  },
+  streakCenterBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
+    marginVertical: 14,
+  },
+  flameOuterCircle: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  flameEmoji: {
+    fontSize: 28,
+    marginBottom: -4,
+  },
+  streakNumberText: {
+    fontSize: 34,
+    fontWeight: '900',
+    lineHeight: 40,
+  },
+  streakLabelText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  statsGridRow: {
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 14,
+  },
+  miniStatBox: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1,
   },
-  secondaryCopyText: {
+  miniStatVal: {
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  miniStatLabel: {
+    fontSize: 10.5,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
+  },
+  heatmapDotsSection: {
+    marginVertical: 10,
+  },
+  dotsSectionTitle: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  dotsRow: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heatDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 4,
+  },
+  cardFooterQuote: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 12,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  cardQuoteText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  actionButtonsRow: {
+    gap: 10,
+    marginTop: 12,
+  },
+  shareActionBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 16,
+  },
+  shareActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
+  },
+  copyActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  copyActionBtnText: {
     fontSize: 13,
+    fontWeight: '700',
   },
 });

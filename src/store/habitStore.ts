@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Habit, HabitLogs, SubTaskLogs, HabitSubTask, DayOfWeek, AppExportData, ViewMode, HabitStack } from '../types/habit';
+import { Habit, HabitLogs, SubTaskLogs, HabitSubTask, DayOfWeek, AppExportData, ViewMode, HabitStack, SoundTheme } from '../types/habit';
 import { getInitialSampleData } from '../constants/presets';
 import { getTodayString, parseISODate } from '../utils/dateUtils';
 import { NotificationService } from '../services/notificationService';
@@ -12,11 +12,13 @@ const STORAGE_KEY_THEME = '@habitflow_theme_v3';
 const STORAGE_KEY_VIEW = '@habitflow_view_v3';
 const STORAGE_KEY_SETTINGS = '@habitflow_settings_v3';
 const STORAGE_KEY_STACKS = '@habitflow_stacks_v3';
+const STORAGE_KEY_FREEZE_BANK = '@habitflow_freeze_bank_v3';
 
 export interface AppSettings {
   startOfWeek: 'sunday' | 'monday';
   hapticFeedback: boolean;
   soundEffects: boolean;
+  soundTheme: SoundTheme;
   confirmDelete: boolean;
   dailyRemindersEnabled: boolean;
   morningReminderTime: string;
@@ -32,6 +34,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   startOfWeek: 'sunday',
   hapticFeedback: true,
   soundEffects: true,
+  soundTheme: 'classic',
   confirmDelete: true,
   dailyRemindersEnabled: true,
   morningReminderTime: '09:00',
@@ -51,6 +54,7 @@ export interface StoreState {
   themeMode: 'dark' | 'light';
   viewMode: ViewMode;
   settings: AppSettings;
+  freezeBankCount: number;
   isLoaded: boolean;
 }
 
@@ -62,8 +66,10 @@ let state: StoreState = {
   themeMode: 'dark',
   viewMode: 'heatmap',
   settings: DEFAULT_SETTINGS,
+  freezeBankCount: 2,
   isLoaded: false,
 };
+
 
 const listeners = new Set<() => void>();
 
@@ -86,6 +92,7 @@ function schedulePersist() {
         [STORAGE_KEY_VIEW, state.viewMode],
         [STORAGE_KEY_SETTINGS, JSON.stringify(state.settings)],
         [STORAGE_KEY_STACKS, JSON.stringify(state.stacks)],
+        [STORAGE_KEY_FREEZE_BANK, String(state.freezeBankCount)],
       ]);
     } catch (e) {
       console.error('Failed to persist habits state', e);
@@ -117,6 +124,7 @@ export const habitStore = {
         STORAGE_KEY_SETTINGS,
         STORAGE_KEY_STACKS,
         STORAGE_KEY_SUBTASK_LOGS,
+        STORAGE_KEY_FREEZE_BANK,
       ]);
 
       const savedHabitsStr = results[0][1];
@@ -126,6 +134,7 @@ export const habitStore = {
       const savedSettingsStr = results[4][1];
       const savedStacksStr = results[5][1];
       const savedSubTaskLogsStr = results[6][1];
+      const savedFreezeBankStr = results[7][1];
 
       let parsedSettings: AppSettings = DEFAULT_SETTINGS;
       if (savedSettingsStr) {
@@ -154,6 +163,12 @@ export const habitStore = {
         }
       }
 
+      let parsedFreezeBank = 2;
+      if (savedFreezeBankStr) {
+        const val = parseInt(savedFreezeBankStr, 10);
+        if (!isNaN(val)) parsedFreezeBank = Math.max(0, Math.min(4, val));
+      }
+
       const sampleData = getInitialSampleData();
 
       if (savedHabitsStr && savedLogsStr) {
@@ -178,6 +193,7 @@ export const habitStore = {
           themeMode: savedTheme === 'light' ? 'light' : 'dark',
           viewMode: savedView || 'heatmap',
           settings: parsedSettings,
+          freezeBankCount: parsedFreezeBank,
           isLoaded: true,
         };
       } else {
@@ -190,6 +206,7 @@ export const habitStore = {
           themeMode: savedTheme === 'light' ? 'light' : 'dark',
           viewMode: 'heatmap',
           settings: parsedSettings,
+          freezeBankCount: parsedFreezeBank,
           isLoaded: true,
         };
         schedulePersist();
@@ -206,9 +223,11 @@ export const habitStore = {
         themeMode: 'dark',
         viewMode: 'heatmap',
         settings: DEFAULT_SETTINGS,
+        freezeBankCount: 2,
         isLoaded: true,
       };
     }
+
     emitChange();
     NotificationService.init().then(() => {
       NotificationService.syncAllHabitReminders(state.habits);
@@ -623,28 +642,110 @@ export const habitStore = {
   },
 
   toggleStreakFreeze(habitId: string, dateStr: string = getTodayString()): boolean {
+    const habit = state.habits.find((h) => h.id === habitId);
+    if (!habit) return false;
+
+    const currentFreezes = new Set(habit.streakFreezeDays || []);
     let isFrozenNow = false;
-    state = {
-      ...state,
-      habits: state.habits.map((h) => {
-        if (h.id === habitId) {
-          const currentFreezes = new Set(h.streakFreezeDays || []);
-          if (currentFreezes.has(dateStr)) {
-            currentFreezes.delete(dateStr);
-            isFrozenNow = false;
-          } else {
-            currentFreezes.add(dateStr);
-            isFrozenNow = true;
-          }
-          return { ...h, streakFreezeDays: Array.from(currentFreezes) };
-        }
-        return h;
-      }),
-    };
+
+    if (currentFreezes.has(dateStr)) {
+      currentFreezes.delete(dateStr);
+      isFrozenNow = false;
+      state = {
+        ...state,
+        freezeBankCount: Math.min(4, state.freezeBankCount + 1),
+        habits: state.habits.map((h) =>
+          h.id === habitId ? { ...h, streakFreezeDays: Array.from(currentFreezes) } : h
+        ),
+      };
+    } else {
+      if (state.freezeBankCount <= 0) {
+        return false;
+      }
+      currentFreezes.add(dateStr);
+      isFrozenNow = true;
+      state = {
+        ...state,
+        freezeBankCount: Math.max(0, state.freezeBankCount - 1),
+        habits: state.habits.map((h) =>
+          h.id === habitId ? { ...h, streakFreezeDays: Array.from(currentFreezes) } : h
+        ),
+      };
+    }
+
     emitChange();
     schedulePersist();
     return isFrozenNow;
   },
+
+  useFreezeForDate(dateStr: string): { success: boolean; isFrozen: boolean; remaining: number } {
+    const activeHabits = state.habits.filter((h) => !h.archived);
+    if (activeHabits.length === 0) {
+      return { success: false, isFrozen: false, remaining: state.freezeBankCount };
+    }
+    const allAlreadyFrozen = activeHabits.every((h) => (h.streakFreezeDays || []).includes(dateStr));
+
+    if (allAlreadyFrozen) {
+      const newBank = Math.min(4, state.freezeBankCount + 1);
+      state = {
+        ...state,
+        freezeBankCount: newBank,
+        habits: state.habits.map((h) => ({
+          ...h,
+          streakFreezeDays: (h.streakFreezeDays || []).filter((d) => d !== dateStr),
+        })),
+      };
+      emitChange();
+      schedulePersist();
+      return { success: true, isFrozen: false, remaining: newBank };
+    } else {
+      if (state.freezeBankCount <= 0) {
+        return { success: false, isFrozen: false, remaining: 0 };
+      }
+      const newBank = Math.max(0, state.freezeBankCount - 1);
+      state = {
+        ...state,
+        freezeBankCount: newBank,
+        habits: state.habits.map((h) => {
+          const s = new Set(h.streakFreezeDays || []);
+          s.add(dateStr);
+          return { ...h, streakFreezeDays: Array.from(s) };
+        }),
+      };
+      emitChange();
+      schedulePersist();
+      return { success: true, isFrozen: true, remaining: newBank };
+    }
+  },
+
+  refillFreezeBank(amount: number = 1): number {
+    const newCount = Math.min(4, state.freezeBankCount + amount);
+    state = { ...state, freezeBankCount: newCount };
+    emitChange();
+    schedulePersist();
+    return newCount;
+  },
+
+  getNextStackHabit(habitId: string, dateStr: string = getTodayString()): Habit | null {
+    if (!state.stacks || state.stacks.length === 0) return null;
+    for (const stack of state.stacks) {
+      const chain: string[] = [stack.triggerHabitId, ...(stack.habitIds || [])];
+      const idx = chain.indexOf(habitId);
+      if (idx !== -1 && idx < chain.length - 1) {
+        const nextId = chain[idx + 1];
+        const nextHabit = state.habits.find((h) => h.id === nextId && !h.archived);
+        if (nextHabit) {
+          const target = nextHabit.targetValue || nextHabit.targetPerDay || 1;
+          const done = (state.logs[nextId]?.[dateStr] || 0) >= target;
+          if (!done) {
+            return nextHabit;
+          }
+        }
+      }
+    }
+    return null;
+  },
+
 
   toggleTheme(): void {
     state = {

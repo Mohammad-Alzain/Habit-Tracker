@@ -11,6 +11,7 @@ interface DaySealNodeProps {
   isPast: boolean;
   isFuture: boolean;
   allDone: boolean;
+  isFrozen?: boolean;
   theme: ThemeColors;
 }
 
@@ -21,9 +22,12 @@ export const DaySealNode: React.FC<DaySealNodeProps> = ({
   isPast,
   isFuture,
   allDone,
+  isFrozen = false,
   theme,
 }) => {
-  const sealBg = isToday
+  const sealBg = isFrozen
+    ? '#0284C7'
+    : isToday
     ? '#FF6565'
     : isFuture
     ? (theme.glassSurface || '#1A1A22')
@@ -33,7 +37,9 @@ export const DaySealNode: React.FC<DaySealNodeProps> = ({
     ? (theme.surface || '#252530')
     : (theme.card || '#1E1E24');
 
-  const borderColor = isToday
+  const borderColor = isFrozen
+    ? '#38BDF8'
+    : isToday
     ? '#FFA0A0'
     : isFuture
     ? theme.border
@@ -51,13 +57,25 @@ export const DaySealNode: React.FC<DaySealNodeProps> = ({
           {
             backgroundColor: sealBg,
             borderColor: borderColor,
-            borderWidth: isToday ? 2.5 : 1.5,
+            borderWidth: isToday || isFrozen ? 2.5 : 1.5,
             opacity: isFuture ? 0.6 : 1,
           },
         ]}
       >
         {isFuture ? (
           <Ionicons name="lock-closed-outline" size={16} color={theme.textMuted} />
+        ) : isFrozen ? (
+          <>
+            <Ionicons name="snow" size={18} color="#FFFFFF" />
+            <Text
+              style={[
+                styles.nodeDayNameShort,
+                { color: '#FFFFFF', fontWeight: '800' },
+              ]}
+            >
+              {dayNum}
+            </Text>
+          </>
         ) : allDone ? (
           <>
             <Ionicons name="checkmark" size={20} color="#FFFFFF" />
@@ -91,8 +109,8 @@ export const DaySealNode: React.FC<DaySealNodeProps> = ({
           </>
         )}
 
-        {/* Subtle line only for uncompleted past days */}
-        {!allDone && isPast && !isFuture && (
+        {/* Subtle line only for uncompleted past days that are NOT frozen */}
+        {!allDone && isPast && !isFuture && !isFrozen && (
           <View style={styles.scratchThroughSeal} pointerEvents="none">
             <View
               style={[
@@ -105,7 +123,11 @@ export const DaySealNode: React.FC<DaySealNodeProps> = ({
       </View>
 
       {/* Status indicator tag */}
-      {isToday ? (
+      {isFrozen ? (
+        <View style={[styles.sealStatusTag, { backgroundColor: '#0284C7' }]}>
+          <Text style={styles.sealStatusTagText}>مجمّد ❄️</Text>
+        </View>
+      ) : isToday ? (
         <View style={[styles.sealStatusTag, { backgroundColor: '#FF6565' }]}>
           <Text style={styles.sealStatusTagText}>اليوم</Text>
         </View>

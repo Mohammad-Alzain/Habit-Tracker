@@ -26,7 +26,10 @@ interface HabitKitHeaderProps {
   isFilterHidden?: boolean;
   onOpenToolsHub?: () => void;
   onOpenWeeklyReview?: () => void;
+  onOpenStreakFreeze?: () => void;
+  freezeBankCount?: number;
 }
+
 
 export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
   theme,
@@ -47,6 +50,8 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
   isFilterHidden = false,
   onOpenToolsHub,
   onOpenWeeklyReview,
+  onOpenStreakFreeze,
+  freezeBankCount,
 }) => {
   const rtl = isRTL(language);
 
@@ -95,6 +100,34 @@ export const HabitKitHeader: React.FC<HabitKitHeaderProps> = ({
               <Ionicons name="trail-sign-outline" size={18} color={theme.text} />
             </TouchableOpacity>
           )}
+
+          {/* Streak Freeze Pill Button */}
+          {onOpenStreakFreeze && (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                hapticService.light();
+                soundService.playFreeze();
+                onOpenStreakFreeze();
+              }}
+              style={[
+                styles.freezePillBtn,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: '#38BDF8',
+                  flexDirection: rtl ? 'row-reverse' : 'row',
+                },
+              ]}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+              accessibilityLabel="بنك تجميد السلسلة"
+            >
+              <Ionicons name="snow" size={15} color="#38BDF8" />
+              <Text style={[styles.freezePillText, { color: theme.text }]}>
+                {freezeBankCount ?? 2}
+              </Text>
+            </TouchableOpacity>
+          )}
+
 
           {/* Filter Toggle Button */}
           {onToggleFilter && (
@@ -271,6 +304,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
+  freezePillBtn: {
+    height: 42,
+    paddingHorizontal: 12,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  freezePillText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
   filterActiveDot: {
     position: 'absolute',
     top: 8,

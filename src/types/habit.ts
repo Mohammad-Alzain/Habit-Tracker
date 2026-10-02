@@ -10,6 +10,8 @@ export type TimeOfDay = 'anytime' | 'morning' | 'afternoon' | 'evening';
 export type ViewMode = 'heatmap' | 'checklist' | 'compact';
 
 export type HabitGoalType = 'days' | 'months' | 'streak' | 'total_count' | 'frequency';
+export type SoundTheme = 'classic' | 'arcade' | 'zen' | 'pop';
+
 
 export interface HabitGoal {
   type: HabitGoalType;

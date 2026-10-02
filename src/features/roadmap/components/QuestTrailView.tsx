@@ -12,7 +12,9 @@ import { SubTaskItem } from './SubTaskItem';
 import { AddSubTaskSheet } from './AddSubTaskSheet';
 import { ActiveTimerSession } from '../../timer/TaskTimerModal';
 import { isHabitActiveInRoadmapOnDay, getScheduledSubTasksForDay } from '../../../utils/habitScheduleUtils';
+import { habitStore } from '../../../store/habitStore';
 import { roadmapStyles as styles } from '../styles/roadmapStyles';
+
 
 interface QuestTrailViewProps {
   days: RoadmapDayItem[];
@@ -124,6 +126,10 @@ export const QuestTrailView: React.FC<QuestTrailViewProps> = ({
 
           const isDayAllDone = totalDayItems > 0 && completedDayItems >= totalDayItems;
 
+          const isDayFrozen = dayHabits.length > 0 && dayHabits.every((h) => (h.streakFreezeDays || []).includes(day.dateStr));
+          const anyHabitFrozen = dayHabits.some((h) => (h.streakFreezeDays || []).includes(day.dateStr));
+          const isFrozenProtected = isDayFrozen || anyHabitFrozen;
+
           return (
             <View
               key={day.dateStr}
@@ -160,6 +166,7 @@ export const QuestTrailView: React.FC<QuestTrailViewProps> = ({
                   isPast={day.isPast}
                   isFuture={isFuture}
                   allDone={isDayAllDone}
+                  isFrozen={isFrozenProtected}
                   theme={theme}
                 />
 
@@ -171,8 +178,8 @@ export const QuestTrailView: React.FC<QuestTrailViewProps> = ({
                       backgroundColor: day.isToday
                         ? (theme.glassSurface || '#1E1E26')
                         : (theme.card || '#17171E'),
-                      borderColor: day.isToday ? '#FF6565' : theme.border,
-                      borderWidth: day.isToday ? 2 : 1,
+                      borderColor: day.isToday ? '#FF6565' : isFrozenProtected ? '#0284C7' : theme.border,
+                      borderWidth: day.isToday || isFrozenProtected ? 2 : 1,
                       opacity: isFuture ? 0.75 : 1,
                     },
                   ]}
@@ -196,6 +203,48 @@ export const QuestTrailView: React.FC<QuestTrailViewProps> = ({
                       </View>
                     )}
                   </View>
+
+                  {/* Freeze Shield Action for Missed or Incomplete Days */}
+                  {!isDayAllDone && !isFuture && dayHabits.length > 0 && (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const res = habitStore.useFreezeForDate(day.dateStr);
+                        if (res.success) {
+                          if (res.isFrozen) {
+                            soundService.playFreeze();
+                            hapticService.success();
+                            Alert.alert('❄️ تم التجميد بنجاح', `تم تفعيل درع التجميد لحماية ستريك هذا اليوم!\nالمتبقي في بنك التجميد: ${res.remaining} 🛡️`);
+                          } else {
+                            hapticService.light();
+                            Alert.alert('❄️ تم إلغاء التجميد', `تمت استعادة درع التجميد إلى رصيدك.\nالمتبقي في بنك التجميد: ${res.remaining} 🛡️`);
+                          }
+                        } else {
+                          hapticService.warning();
+                          Alert.alert('رصيد التجميد نفد', 'لا يوجد رصيد دروع تجميد متبقٍ لديك في البنك (احرص على الاستمرار 7 أيام لإعادة الشحن).');
+                        }
+                      }}
+                      style={{
+                        flexDirection: rtl ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginVertical: 6,
+                        paddingVertical: 5,
+                        paddingHorizontal: 10,
+                        borderRadius: 8,
+                        backgroundColor: isFrozenProtected ? 'rgba(2, 132, 199, 0.15)' : 'rgba(56, 189, 248, 0.08)',
+                        borderWidth: 1,
+                        borderColor: isFrozenProtected ? '#0284C7' : 'rgba(56, 189, 248, 0.3)',
+                        alignSelf: rtl ? 'flex-end' : 'flex-start',
+                      }}
+                    >
+                      <Ionicons name="snow" size={13} color={isFrozenProtected ? '#38BDF8' : '#7DD3FC'} />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: isFrozenProtected ? '#38BDF8' : theme.textMuted }}>
+                        {isFrozenProtected ? 'اليوم محمي بدرع التجميد ❄️ (إلغاء)' : 'استخدام درع تجميد للستريك ❄️'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
 
                   {/* Habits & Subtasks for this Station */}
                   <View style={styles.stationTasksList}>

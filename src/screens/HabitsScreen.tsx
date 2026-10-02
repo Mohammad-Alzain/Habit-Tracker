@@ -20,7 +20,12 @@ import { FullCalendarCard } from '../components/FullCalendarCard';
 import { HabitKitHeader } from '../components/HabitKitHeader';
 import { SlipReflectionModal } from '../components/SlipReflectionModal';
 import { ToolsHubModal } from '../components/ToolsHubModal';
+import { StreakFreezeModal } from '../components/StreakFreezeModal';
+import { ShareHabitCardModal } from '../components/ShareHabitCardModal';
+import { HabitStackNextToast } from '../components/HabitStackNextToast';
+import { habitStore, useHabitStore } from '../store/habitStore';
 import { calculateHabitStats } from '../utils/streakUtils';
+
 import { getTodayString, parseISODate, getLastNDays } from '../utils/dateUtils';
 import { isHabitScheduledForDay } from '../utils/habitScheduleUtils';
 import { soundService } from '../services/soundService';
@@ -98,7 +103,15 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   const [showQuoteBanner, setShowQuoteBanner] = useState(true);
   const [copiedQuote, setCopiedQuote] = useState(false);
   const [toolsHubVisible, setToolsHubVisible] = useState(false);
+  const store = useHabitStore();
+  const [streakFreezeModalVisible, setStreakFreezeModalVisible] = useState(false);
+  const [shareCardModalVisible, setShareCardModalVisible] = useState(false);
+  const [shareCardInitialHabitId, setShareCardInitialHabitId] = useState<string | undefined>(undefined);
+  const [stackToastVisible, setStackToastVisible] = useState(false);
+  const [stackNextHabit, setStackNextHabit] = useState<Habit | null>(null);
+  const [stackTriggerHabitName, setStackTriggerHabitName] = useState('');
   const rtl = isRTL(language);
+
 
   const handleShuffleQuote = () => {
     hapticService.light();
@@ -292,13 +305,38 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
     soundService.playComplete();
     hapticService.success();
     onToggleToday(habitId);
-  }, [onToggleToday]);
+
+    // Smart Habit Stacking Automation
+    setTimeout(() => {
+      const triggerHabit = habits.find((h) => h.id === habitId);
+      const nextHabit = habitStore.getNextStackHabit(habitId, todayStr);
+      if (nextHabit && triggerHabit) {
+        setStackTriggerHabitName(triggerHabit.name);
+        setStackNextHabit(nextHabit);
+        setStackToastVisible(true);
+      }
+    }, 450);
+  }, [onToggleToday, habits, todayStr]);
+
+  const handleCompleteNextStackHabit = (nextHabitId: string) => {
+    onToggleToday(nextHabitId);
+    const nextTriggerHabit = habits.find((h) => h.id === nextHabitId);
+    const subsequentHabit = habitStore.getNextStackHabit(nextHabitId, todayStr);
+    if (subsequentHabit && nextTriggerHabit) {
+      setStackTriggerHabitName(nextTriggerHabit.name);
+      setStackNextHabit(subsequentHabit);
+    } else {
+      setStackToastVisible(false);
+      setStackNextHabit(null);
+    }
+  };
 
   const handleTogglePastDateWithEffects = React.useCallback((habitId: string, dateStr: string) => {
     soundService.playComplete();
     hapticService.light();
     onTogglePastDate(habitId, dateStr);
   }, [onTogglePastDate]);
+
 
   const handleAdjustNumericWithEffects = React.useCallback((habitId: string, delta: number) => {
     if (delta > 0) {
@@ -393,7 +431,10 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         isFilterHidden={!showFilters}
         onOpenToolsHub={() => setToolsHubVisible(true)}
         onOpenWeeklyReview={onOpenWeeklyReview}
+        onOpenStreakFreeze={() => setStreakFreezeModalVisible(true)}
+        freezeBankCount={store.freezeBankCount}
       />
+
 
       {/* Quick Filters Bar (Collapsible with smooth animation) */}
       <Animated.View
@@ -744,8 +785,47 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         onOpenStudies={onOpenStudies}
         onOpenReorder={onOpenReorder}
         onOpenWeeklyReview={onOpenWeeklyReview}
+        onOpenStreakFreeze={() => setStreakFreezeModalVisible(true)}
+        onOpenShareCard={() => {
+          setShareCardInitialHabitId(undefined);
+          setShareCardModalVisible(true);
+        }}
+      />
+
+      {/* Streak Freeze Bank Modal */}
+      <StreakFreezeModal
+        visible={streakFreezeModalVisible}
+        theme={theme}
+        language={language}
+        onClose={() => setStreakFreezeModalVisible(false)}
+      />
+
+      {/* Social Habit Share Card Modal */}
+      <ShareHabitCardModal
+        visible={shareCardModalVisible}
+        habits={habits}
+        logs={logs}
+        theme={theme}
+        language={language}
+        initialHabitId={shareCardInitialHabitId}
+        onClose={() => setShareCardModalVisible(false)}
+      />
+
+      {/* Smart Habit Stacking Floating Toast / Cue Banner */}
+      <HabitStackNextToast
+        visible={stackToastVisible}
+        nextHabit={stackNextHabit}
+        triggerHabitName={stackTriggerHabitName}
+        theme={theme}
+        language={language}
+        onCompleteNow={handleCompleteNextStackHabit}
+        onDismiss={() => {
+          setStackToastVisible(false);
+          setStackNextHabit(null);
+        }}
       />
     </View>
+
   );
 };
 
