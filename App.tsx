@@ -27,8 +27,8 @@ import { WidgetsHubModal } from './src/components/WidgetsHubModal';
 import { MilestonesModal } from './src/components/MilestonesModal';
 import { HabitStudiesModal } from './src/components/HabitStudiesModal';
 import { HabitStackModal } from './src/components/HabitStackModal';
-import { ShareHabitCardModal } from './src/components/ShareHabitCardModal';
 import { RoadmapModal } from './src/components/RoadmapModal';
+
 import { ReorderHabitsModal } from './src/components/ReorderHabitsModal';
 import { WeeklyReviewModal } from './src/components/WeeklyReviewModal';
 import { ModalHeader } from './src/components/ModalHeader';
@@ -68,9 +68,8 @@ export default function App() {
   const [milestonesModalVisible, setMilestonesModalVisible] = useState(false);
   const [studiesModalVisible, setStudiesModalVisible] = useState(false);
   const [stackModalVisible, setStackModalVisible] = useState(false);
-  const [shareModalVisible, setShareModalVisible] = useState(false);
-  const [habitToShare, setHabitToShare] = useState<Habit | null>(null);
   const [activeTimerHabit, setActiveTimerHabit] = useState<Habit | null>(null);
+
   const [roadmapTimerSession, setRoadmapTimerSession] = useState<any | null>(null);
   const [reorderModalVisible, setReorderModalVisible] = useState(false);
   const [weeklyReviewVisible, setWeeklyReviewVisible] = useState(false);
@@ -341,11 +340,8 @@ export default function App() {
           onDeleteHabit={handleDeleteHabit}
           onArchiveHabit={(id) => habitStore.archiveHabit(id)}
           onSaveNote={handleSaveNote}
-          onShareHabit={(habit) => {
-            setHabitToShare(habit);
-            setShareModalVisible(true);
-          }}
           onOpenRoadmap={() => setRoadmapModalVisible(true)}
+
           onTogglePin={(habitId) => {
             habitStore.togglePinHabit(habitId);
             const updated = habitStore.getSnapshot().habits.find((h) => h.id === habitId);
@@ -515,20 +511,8 @@ export default function App() {
           onToggleHabit={handleToggleToday}
         />
 
-        {/* Modal: Shareable Trophy Habit Card */}
-        <ShareHabitCardModal
-          visible={shareModalVisible}
-          habit={habitToShare}
-          logs={logs}
-          theme={theme}
-          language={language}
-          onClose={() => {
-            setShareModalVisible(false);
-            setHabitToShare(null);
-          }}
-        />
-
         {/* Modal: Roadmap & Habit Commitments Hub */}
+
         <RoadmapModal
           visible={roadmapModalVisible}
           habits={habits}

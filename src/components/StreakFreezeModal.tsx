@@ -51,10 +51,10 @@ export const StreakFreezeModal: React.FC<StreakFreezeModalProps> = ({
       if (res.isFrozen) {
         soundService.playFreeze();
         hapticService.success();
-        Alert.alert('❄️ تم التجميد بنجاح', `تم تفعيل درع التجميد لحماية ستريك ${dateLabel}!\nالمتبقي في بنك التجميد: ${res.remaining} 🛡️`);
+        Alert.alert('تم التجميد بنجاح', `تم تفعيل درع التجميد لحماية ستريك ${dateLabel}.\nالمتبقي في بنك التجميد: ${res.remaining} دروع`);
       } else {
         hapticService.light();
-        Alert.alert('❄️ استعادة الدرع', `تم إلغاء التجميد واستعادة الدرع إلى بنك التجميد.\nرصيدك الآن: ${res.remaining} 🛡️`);
+        Alert.alert('استعادة الدرع', `تم إلغاء التجميد واستعادة الدرع إلى بنك التجميد.\nرصيدك الآن: ${res.remaining} دروع`);
       }
     } else {
       hapticService.warning();
@@ -75,11 +75,12 @@ export const StreakFreezeModal: React.FC<StreakFreezeModalProps> = ({
           ]}
         >
           <ModalHeader
-            title="بنك تجميد السلسلة ❄️"
+            title="بنك تجميد السلسلة"
             onClose={onClose}
             theme={theme}
             isRTL={rtl}
           />
+
 
 
           <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
@@ -148,7 +149,7 @@ export const StreakFreezeModal: React.FC<StreakFreezeModalProps> = ({
               </View>
               <View style={{ flex: 1, alignItems: rtl ? 'flex-end' : 'flex-start' }}>
                 <Text style={[styles.actionCardTitle, { color: theme.text }]}>
-                  {isTodayFrozen ? 'اليوم محمي بالتجميد ❄️' : 'تجميد اليوم لحماية الستريك'}
+                  {isTodayFrozen ? 'اليوم محمي بالتجميد' : 'تجميد اليوم لحماية الستريك'}
                 </Text>
                 <Text style={[styles.actionCardSub, { color: theme.textMuted }]}>
                   {isTodayFrozen ? 'اضغط لإلغاء التجميد واستعادة الدرع' : 'يستخدم 1 درع تجميد لحماية جميع عادات اليوم'}
@@ -187,8 +188,9 @@ export const StreakFreezeModal: React.FC<StreakFreezeModalProps> = ({
               </View>
               <View style={{ flex: 1, alignItems: rtl ? 'flex-end' : 'flex-start' }}>
                 <Text style={[styles.actionCardTitle, { color: theme.text }]}>
-                  {isYesterdayFrozen ? 'أمس محمي بالتجميد ❄️' : 'إنقاذ ستريك الأمس (درع رجعي)'}
+                  {isYesterdayFrozen ? 'أمس محمي بالتجميد' : 'إنقاذ ستريك الأمس (درع رجعي)'}
                 </Text>
+
                 <Text style={[styles.actionCardSub, { color: theme.textMuted }]}>
                   {isYesterdayFrozen ? 'اضغط لإلغاء التجميد واستعادة الدرع' : 'هل فاتك إنجاز الأمس؟ جمّد الأمس واستعد ستريكك!'}
                 </Text>

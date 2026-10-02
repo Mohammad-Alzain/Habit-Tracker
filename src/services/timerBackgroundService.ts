@@ -137,7 +137,7 @@ class TimerBackgroundService {
     await AsyncStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(session));
 
     // Schedule OS completion alert (fires on lockscreen even if app is backgrounded)
-    const completionTitle = 'انتهت جلسة التركيز! 🎯';
+    const completionTitle = 'انتهت جلسة التركيز!';
     const completionBody = session.subtitle
       ? `تم إنجاز "${session.title}" (${session.subtitle}) بنجاح! أحسنت صنعاً.`
       : `تم إنجاز "${session.title}" بنجاح! أحسنت صنعاً.`;
@@ -194,7 +194,7 @@ class TimerBackgroundService {
     const timeFormatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
     await NotificationService.showTimerStarted(
-      `مؤقت التركيز نشط ⏳ (${timeFormatted})`,
+      `مؤقت التركيز نشط (${timeFormatted})`,
       `جلسة لـ "${this.currentSession.title}"`
     );
   }

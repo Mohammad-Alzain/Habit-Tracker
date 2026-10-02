@@ -21,8 +21,8 @@ import { HabitKitHeader } from '../components/HabitKitHeader';
 import { SlipReflectionModal } from '../components/SlipReflectionModal';
 import { ToolsHubModal } from '../components/ToolsHubModal';
 import { StreakFreezeModal } from '../components/StreakFreezeModal';
-import { ShareHabitCardModal } from '../components/ShareHabitCardModal';
 import { HabitStackNextToast } from '../components/HabitStackNextToast';
+
 import { habitStore, useHabitStore } from '../store/habitStore';
 import { calculateHabitStats } from '../utils/streakUtils';
 
@@ -105,9 +105,8 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
   const [toolsHubVisible, setToolsHubVisible] = useState(false);
   const store = useHabitStore();
   const [streakFreezeModalVisible, setStreakFreezeModalVisible] = useState(false);
-  const [shareCardModalVisible, setShareCardModalVisible] = useState(false);
-  const [shareCardInitialHabitId, setShareCardInitialHabitId] = useState<string | undefined>(undefined);
   const [stackToastVisible, setStackToastVisible] = useState(false);
+
   const [stackNextHabit, setStackNextHabit] = useState<Habit | null>(null);
   const [stackTriggerHabitName, setStackTriggerHabitName] = useState('');
   const rtl = isRTL(language);
@@ -786,10 +785,6 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         onOpenReorder={onOpenReorder}
         onOpenWeeklyReview={onOpenWeeklyReview}
         onOpenStreakFreeze={() => setStreakFreezeModalVisible(true)}
-        onOpenShareCard={() => {
-          setShareCardInitialHabitId(undefined);
-          setShareCardModalVisible(true);
-        }}
       />
 
       {/* Streak Freeze Bank Modal */}
@@ -800,18 +795,8 @@ export const HabitsScreen: React.FC<HabitsScreenProps> = ({
         onClose={() => setStreakFreezeModalVisible(false)}
       />
 
-      {/* Social Habit Share Card Modal */}
-      <ShareHabitCardModal
-        visible={shareCardModalVisible}
-        habits={habits}
-        logs={logs}
-        theme={theme}
-        language={language}
-        initialHabitId={shareCardInitialHabitId}
-        onClose={() => setShareCardModalVisible(false)}
-      />
-
       {/* Smart Habit Stacking Floating Toast / Cue Banner */}
+
       <HabitStackNextToast
         visible={stackToastVisible}
         nextHabit={stackNextHabit}

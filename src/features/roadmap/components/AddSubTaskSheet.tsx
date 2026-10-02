@@ -162,7 +162,7 @@ export const AddSubTaskSheet: React.FC<AddSubTaskSheetProps> = ({
               color={reminderEnabled ? '#FF6565' : theme.textMuted}
             />
             <Text style={{ color: reminderEnabled ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
-              تنبيهات نمط دولينغو اليومية 🔔
+              تنبيهات نمط دولينغو اليومية
             </Text>
           </TouchableOpacity>
 
@@ -204,10 +204,11 @@ export const AddSubTaskSheet: React.FC<AddSubTaskSheetProps> = ({
             color={calendarSync ? '#7C83FD' : theme.textMuted}
           />
           <Text style={{ color: calendarSync ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
-            ربط وإضافة لتقويم الهاتف والتذكيرات 📅
+            ربط وإضافة لتقويم الهاتف والتذكيرات
           </Text>
         </TouchableOpacity>
       </View>
+
 
       <View style={[styles.formButtonsRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
         <TouchableOpacity

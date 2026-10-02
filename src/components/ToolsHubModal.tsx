@@ -19,9 +19,7 @@ interface ToolsHubModalProps {
   onOpenReorder?: () => void;
   onOpenWeeklyReview?: () => void;
   onOpenStreakFreeze?: () => void;
-  onOpenShareCard?: () => void;
 }
-
 
 export const ToolsHubModal: React.FC<ToolsHubModalProps> = ({
   visible,
@@ -36,7 +34,6 @@ export const ToolsHubModal: React.FC<ToolsHubModalProps> = ({
   onOpenReorder,
   onOpenWeeklyReview,
   onOpenStreakFreeze,
-  onOpenShareCard,
 }) => {
   const tools = [
     {
@@ -49,22 +46,15 @@ export const ToolsHubModal: React.FC<ToolsHubModalProps> = ({
     },
     {
       id: 'freeze',
-      title: 'بنك تجميد السلسلة ❄️',
+      title: 'بنك تجميد السلسلة',
       subtitle: 'حماية الستريك من الانكسار في أيام الغياب',
       icon: 'snow-outline',
       color: '#00CEC9',
       action: onOpenStreakFreeze,
     },
     {
-      id: 'shareCard',
-      title: 'بطاقة المشاركة الجمالية 📸',
-      subtitle: 'توليد بطاقة إنجاز لمشاركتها على وسائل التواصل',
-      icon: 'share-social-outline',
-      color: '#E056FD',
-      action: onOpenShareCard,
-    },
-    {
       id: 'stacks',
+
       title: 'سلاسل العادات (Habit Stacks)',
       subtitle: 'دمج العادات المتتابعة لتعزيز الالتزام',
       icon: 'layers-outline',

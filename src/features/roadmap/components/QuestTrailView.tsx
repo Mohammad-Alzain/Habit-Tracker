@@ -214,10 +214,10 @@ export const QuestTrailView: React.FC<QuestTrailViewProps> = ({
                           if (res.isFrozen) {
                             soundService.playFreeze();
                             hapticService.success();
-                            Alert.alert('❄️ تم التجميد بنجاح', `تم تفعيل درع التجميد لحماية ستريك هذا اليوم!\nالمتبقي في بنك التجميد: ${res.remaining} 🛡️`);
+                            Alert.alert('تم التجميد بنجاح', `تم تفعيل درع التجميد لحماية ستريك هذا اليوم!\nالمتبقي في بنك التجميد: ${res.remaining} دروع`);
                           } else {
                             hapticService.light();
-                            Alert.alert('❄️ تم إلغاء التجميد', `تمت استعادة درع التجميد إلى رصيدك.\nالمتبقي في بنك التجميد: ${res.remaining} 🛡️`);
+                            Alert.alert('تم إلغاء التجميد', `تمت استعادة درع التجميد إلى رصيدك.\nالمتبقي في بنك التجميد: ${res.remaining} دروع`);
                           }
                         } else {
                           hapticService.warning();
@@ -240,10 +240,11 @@ export const QuestTrailView: React.FC<QuestTrailViewProps> = ({
                     >
                       <Ionicons name="snow" size={13} color={isFrozenProtected ? '#38BDF8' : '#7DD3FC'} />
                       <Text style={{ fontSize: 11, fontWeight: '700', color: isFrozenProtected ? '#38BDF8' : theme.textMuted }}>
-                        {isFrozenProtected ? 'اليوم محمي بدرع التجميد ❄️ (إلغاء)' : 'استخدام درع تجميد للستريك ❄️'}
+                        {isFrozenProtected ? 'اليوم محمي بدرع التجميد (إلغاء)' : 'استخدام درع تجميد للستريك'}
                       </Text>
                     </TouchableOpacity>
                   )}
+
 
 
                   {/* Habits & Subtasks for this Station */}

@@ -100,14 +100,14 @@ export const ReminderTimeModal: React.FC<ReminderTimeModalProps> = ({
 
   const suggestionChips = language === 'ar'
     ? [
-        'حان وقت إنجاز العادة! الخطوة الأولى تصنع الفارق ✨',
-        'لا تكسر السلسلة، دقيقة واحدة تكفي 🔥',
-        'استمر! أنت أقرب مما تظن للوصول 🎯',
+        'حان وقت إنجاز العادة! الخطوة الأولى تصنع الفارق',
+        'لا تكسر السلسلة، دقيقة واحدة تكفي',
+        'استمر! أنت أقرب مما تظن للوصول',
       ]
     : [
-        'Time to do your habit! First step matters ✨',
-        "Don't break the chain, 1 minute counts 🔥",
-        "Keep going, you're closer than you think 🎯",
+        'Time to do your habit! First step matters',
+        "Don't break the chain, 1 minute counts",
+        "Keep going, you're closer than you think",
       ];
 
   const handleSave = () => {

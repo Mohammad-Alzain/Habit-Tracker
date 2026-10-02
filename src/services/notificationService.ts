@@ -228,10 +228,10 @@ export class NotificationService {
 
       // Duolingo-style motivational notification messages
       const duolingoTitles = [
-        `لا تكسر سلسلتك اليوم! 🔥`,
-        `حان وقت التزام "${subTask.title}"! 🎯`,
-        `خطوة شجاعة جديدة في "${habitName}" 🚀`,
-        `لا تدع اليوم يمر دون إنجاز! ⚡`,
+        `لا تكسر سلسلتك اليوم!`,
+        `حان وقت التزام "${subTask.title}"!`,
+        `خطوة شجاعة جديدة في "${habitName}"`,
+        `لا تدع اليوم يمر دون إنجاز!`,
       ];
 
       const duolingoBodies = [
@@ -327,7 +327,7 @@ export class NotificationService {
       const firstHabit = activeHabits[0];
       const quote = getMorningQuote();
 
-      const title = 'صباح الخير والهمة! ☀️';
+      const title = 'صباح الخير والهمة!';
       const body = firstHabit
         ? `ابدأ يومك بإنجاز أول عادة: "${firstHabit.name}".\n"${quote.text}"`
         : `"${quote.text}" - ابدأ يومك بتلوين عاداتك ومساراتك اليومية!`;
@@ -369,7 +369,7 @@ export class NotificationService {
       await Notifications.cancelScheduledNotificationAsync('inactivity-reminder').catch(() => {});
 
       const quote = getInactivityQuote();
-      const title = 'عاداتك بانتظارك! حافظ على وتيرة استمرارك 🔥';
+      const title = 'عاداتك بانتظارك! حافظ على وتيرة استمرارك';
       const body = `"${quote.text}" - لم تفتح التطبيق اليوم، دقيقة واحدة تكفي لحماية سلسلتك وإبقاء الشعلة متقدة!`;
 
       const seconds = Math.max(60, hoursDelay * 3600);

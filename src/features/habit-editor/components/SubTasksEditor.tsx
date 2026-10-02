@@ -234,7 +234,7 @@ export const SubTasksEditor: React.FC<SubTasksEditorProps> = ({
                 color={newSubTaskReminderEnabled ? '#FF6565' : theme.textMuted}
               />
               <Text style={{ color: newSubTaskReminderEnabled ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
-                تنبيهات نمط دولينغو اليومية 🔔
+                تنبيهات نمط دولينغو اليومية
               </Text>
             </TouchableOpacity>
 
@@ -275,10 +275,11 @@ export const SubTasksEditor: React.FC<SubTasksEditorProps> = ({
               color={newSubTaskCalendarSync ? '#7C83FD' : theme.textMuted}
             />
             <Text style={{ color: newSubTaskCalendarSync ? theme.text : theme.textMuted, fontSize: 12, fontWeight: '600' }}>
-              ربط وإضافة لتقويم الهاتف والتذكيرات 📅
+              ربط وإضافة لتقويم الهاتف والتذكيرات
             </Text>
           </TouchableOpacity>
         </View>
+
 
         <View style={styles.bottomRow}>
           <View style={styles.minutesInputRow}>

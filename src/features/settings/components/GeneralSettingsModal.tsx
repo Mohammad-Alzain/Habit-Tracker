@@ -83,11 +83,12 @@ export const GeneralSettingsModal: React.FC<GeneralSettingsModalProps> = ({
           ]}
         >
           <DialogHeader
-            title={language === 'ar' ? 'الإعدادات واستوديو الأصوات 🎵' : 'General & Sound Studio'}
+            title={language === 'ar' ? 'الإعدادات واستوديو الأصوات' : 'General & Sound Studio'}
             theme={theme}
             isRTL={rtl}
             onClose={onClose}
           />
+
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
             {/* بداية الأسبوع */}

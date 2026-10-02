@@ -17,7 +17,7 @@ import { ArchivedHabitsModal } from './components/ArchivedHabitsModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { IntroGuideModal } from './components/IntroGuideModal';
 import { StreakFreezeModal } from '../../components/StreakFreezeModal';
-import { ShareHabitCardModal } from '../../components/ShareHabitCardModal';
+
 
 
 export interface SettingsScreenProps {
@@ -86,7 +86,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [introModalVisible, setIntroModalVisible] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
   const [freezeModalVisible, setFreezeModalVisible] = useState(false);
-  const [shareCardModalVisible, setShareCardModalVisible] = useState(false);
+
 
 
   const showStatus = (type: 'success' | 'error', text: string) => {
@@ -327,7 +327,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Ionicons name="snow-outline" size={18} color="#00CEC9" />
             </View>
             <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
-              بنك تجميد السلسلة ❄️
+              بنك تجميد السلسلة
             </Text>
             <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
               <Text style={[styles.subValueText, { color: '#00CEC9', fontWeight: '700' }]}>حماية الستريك</Text>
@@ -335,26 +335,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </View>
           </TouchableOpacity>
 
-          {/* بطاقة المشاركة الجمالية */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              hapticService.light();
-              setShareCardModalVisible(true);
-            }}
-            style={[styles.menuItem, { borderBottomColor: theme.border, flexDirection: rtl ? 'row-reverse' : 'row' }]}
-          >
-            <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(224, 86, 253, 0.15)' }]}>
-              <Ionicons name="share-social-outline" size={18} color="#E056FD" />
-            </View>
-            <Text style={[styles.menuItemText, { color: theme.text, textAlign: rtl ? 'right' : 'left' }]}>
-              بطاقة المشاركة الجمالية 📸
-            </Text>
-            <View style={[styles.menuValueRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-              <Text style={[styles.subValueText, { color: theme.textDim }]}>مشاركة الإنجاز</Text>
-              <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={theme.textDim} />
-            </View>
-          </TouchableOpacity>
 
           {/* خريطة الالتزامات */}
           {onOpenRoadmap && (
@@ -633,16 +613,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         language={language}
         onClose={() => setFreezeModalVisible(false)}
       />
-
-      <ShareHabitCardModal
-        visible={shareCardModalVisible}
-        habits={habits}
-        logs={logs}
-        theme={theme}
-        language={language}
-        onClose={() => setShareCardModalVisible(false)}
-      />
     </View>
+
 
   );
 };

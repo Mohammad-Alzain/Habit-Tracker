@@ -173,8 +173,8 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
     soundService.playTap();
     const shareText =
       language === 'ar'
-        ? `📊 تقرير حصادي الأسبوعي في Habit Tracker:\n• نسبة الالتزام: ${overallRate}%\n• إجمالي الإنجازات: ${totalCompletions} من أصل ${totalOpportunities}\n• العادة النجمة: ${starHabit?.habit.name || 'عاداتي'}\n✨ واصل المضي قدماً!`
-        : `📊 My Weekly Habit Review:\n• Consistency Rate: ${overallRate}%\n• Total Completions: ${totalCompletions} / ${totalOpportunities}\n• Star Habit: ${starHabit?.habit.name || 'My habits'}\n✨ Keep building momentum!`;
+        ? `تقرير حصادي الأسبوعي في Habit Tracker:\n• نسبة الالتزام: ${overallRate}%\n• إجمالي الإنجازات: ${totalCompletions} من أصل ${totalOpportunities}\n• العادة النجمة: ${starHabit?.habit.name || 'عاداتي'}\nواصل المضي قدماً!`
+        : `My Weekly Habit Review:\n• Consistency Rate: ${overallRate}%\n• Total Completions: ${totalCompletions} / ${totalOpportunities}\n• Star Habit: ${starHabit?.habit.name || 'My habits'}\nKeep building momentum!`;
 
     try {
       await Share.share({ message: shareText });
@@ -237,7 +237,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
                   </Text>
                 </Text>
                 <Text style={[styles.heroDateSpan, { color: theme.textDim }]}>
-                  {last7Days[0]} ➔ {last7Days[last7Days.length - 1]}
+                  {last7Days[0]} - {last7Days[last7Days.length - 1]}
                 </Text>
               </View>
             </View>

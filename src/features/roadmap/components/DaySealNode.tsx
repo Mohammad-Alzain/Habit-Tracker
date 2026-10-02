@@ -125,8 +125,9 @@ export const DaySealNode: React.FC<DaySealNodeProps> = ({
       {/* Status indicator tag */}
       {isFrozen ? (
         <View style={[styles.sealStatusTag, { backgroundColor: '#0284C7' }]}>
-          <Text style={styles.sealStatusTagText}>مجمّد ❄️</Text>
+          <Text style={styles.sealStatusTagText}>مجمّد</Text>
         </View>
+
       ) : isToday ? (
         <View style={[styles.sealStatusTag, { backgroundColor: '#FF6565' }]}>
           <Text style={styles.sealStatusTagText}>اليوم</Text>

@@ -41,7 +41,7 @@ export const ConfirmReplaceTimerModal: React.FC<ConfirmReplaceTimerModalProps> =
         </View>
 
         <Text style={[styles.title, { color: theme.text }]}>
-          مؤقت نشط يعمل حالياً ⏳
+          مؤقت نشط يعمل حالياً
         </Text>
 
         {/* Message description */}
